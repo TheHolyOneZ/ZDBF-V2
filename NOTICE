@@ -1,0 +1,19 @@
+Zoryx Discord Bot Framework (ZDBF) V2
+Copyright 2025-2026 TheHolyOneZ
+
+This product includes software developed by TheHolyOneZ.
+Original project: https://github.com/TheHolyOneZ/discord-bot-framework
+
+Licensed under the Apache License, Version 2.0 (see LICENSE), with the
+exception of the ZSync Marketplace client located in zdbf/marketplace/,
+which is governed by LICENSE-MARKETPLACE. Extensions downloaded through the
+ZSync Marketplace are governed by their own individual licenses.
+
+Under Section 4(d) of the Apache License, any redistribution of this work
+or of a derivative work must include a readable copy of this NOTICE file.
+
+Trademarks: "Zoryx", "Zoryx Discord Bot Framework", "ZDBF", "ZSync" and
+"TheHolyOneZ" are names of the original author. Section 6 of the Apache
+License grants no permission to use them, except as required for reasonable
+and customary use in describing the origin of the work and reproducing the
+content of this NOTICE file.

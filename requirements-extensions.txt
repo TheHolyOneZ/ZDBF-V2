@@ -1,0 +1,16 @@
+# Optional: common dependencies used by ZSync Marketplace extensions
+# (https://zsync.eu/extension/). The core framework does NOT need these.
+# Install with: pip install -r requirements-extensions.txt
+# Heavy ML packages (torch, opencv, ...) are intentionally not listed - install
+# them only if a specific extension asks for them (`/marketplace fixdeps` helps).
+spotipy>=2.25
+yt-dlp>=2025.6.30
+Pillow>=11.0
+numpy>=2.2
+pytz>=2025.2
+python-dateutil>=2.9
+jsonschema>=4.24
+matplotlib>=3.10
+chat_exporter>=2.8
+PyYAML>=6.0
+rarfile>=4.2

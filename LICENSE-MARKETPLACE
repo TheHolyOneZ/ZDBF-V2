@@ -1,0 +1,53 @@
+ZSYNC MARKETPLACE LICENSE
+Copyright (c) 2025-2026 TheHolyOneZ (TheZ). All rights reserved.
+
+SCOPE
+This license applies to:
+  (a) the ZSync Marketplace client: every file in zdbf/marketplace/ ; and
+  (b) every extension downloaded through the ZSync Marketplace
+      (https://zsync.eu/extension/), in addition to that extension's own
+      license.
+The remainder of ZDBF V2 is licensed under the Apache License 2.0 (LICENSE).
+
+1. ECOSYSTEM ONLY
+   The marketplace client and downloaded extensions may only be used within
+   the ZSync ecosystem, which includes the Zoryx Discord Bot Framework (ZDBF)
+   and other systems authorized by TheHolyOneZ.
+
+2. ATTRIBUTION PROTECTION
+   The following names and identifiers must not be removed, altered or
+   obscured in the marketplace client or in any marketplace extension:
+     ZSync, zsync, ZDBF, Zoryx, TheHolyOneZ, TheZ
+   Legacy identifiers (ZygnalBot, zygnalbot) that still appear in older
+   extensions are covered by this clause as well.
+
+3. INDIVIDUAL LICENSES
+   Each extension may carry its own additional license terms, usually at the
+   top of its source file. You must respect and comply with them.
+
+4. NO REDISTRIBUTION
+   Marketplace extensions must not be redistributed outside authorized ZSync
+   systems. This includes, but is not limited to, uploading them to other
+   platforms, publishing their source code, or bundling them with other bot
+   frameworks.
+
+5. ZSYNC ZDBF KEY REQUIRED
+   Marketplace access requires a valid, activated ZSync ZDBF Key: a unique
+   identifier tied to each bot installation (stored in
+   data/marketplace/zsync-zdbf-key.txt). Keys must not be shared, sold or
+   spoofed.
+
+6. MODIFICATION OF THE CLIENT
+   You may modify the marketplace client for your own installation, provided
+   that clauses 1-5 remain respected and that the client keeps identifying
+   itself honestly to the ZSync service.
+
+VIOLATIONS
+Violations may result in immediate deactivation of the ZSync ZDBF Key, a
+permanent ban from the marketplace and support, and, for severe or repeated
+violations, legal action.
+
+DISCLAIMER
+THE MARKETPLACE CLIENT AND EXTENSIONS ARE PROVIDED "AS IS", WITHOUT WARRANTY
+OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THEIR USE.

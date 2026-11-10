@@ -1,0 +1,12 @@
+# Core runtime requirements for ZDBF V2 (Python 3.12 - 3.14).
+# Preferred install: pip install -e .   (uses pyproject.toml)
+discord.py[voice]>=2.7.1,<2.8
+aiosqlite>=0.21
+aiohttp>=3.12
+aiofiles>=24.1
+pydantic>=2.9,<3
+python-dotenv>=1.0
+rich>=14.0
+psutil>=6.0
+cryptography>=45.0
+tzdata; sys_platform == "win32"

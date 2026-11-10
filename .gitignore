@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------
+#  Secrets and your own settings - never commit these
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+/config.toml
+/.local/
+
+# ---------------------------------------------------------------
+#  Created while the bot runs
+# ---------------------------------------------------------------
+/data/
+/logs/
+/botlogs/
+/migrations/
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# Extensions you install (marketplace or your own) stay local;
+# only the bundled example and readme belong to the repository.
+/extensions/*
+!/extensions/README.md
+!/extensions/example.py
+
+# ---------------------------------------------------------------
+#  Python
+# ---------------------------------------------------------------
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ---------------------------------------------------------------
+#  Editors and operating systems
+# ---------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
