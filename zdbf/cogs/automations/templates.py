@@ -105,7 +105,8 @@ class Runtime:
 
     def throttle(self, key: str, seconds: float) -> bool:
         now = time.monotonic()
-        if now - self._last_call.get(key, 0) < seconds:
+        last = self._last_call.get(key)
+        if last is not None and now - last < seconds:
             return False
         self._last_call[key] = now
         return True

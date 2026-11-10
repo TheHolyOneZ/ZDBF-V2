@@ -200,7 +200,7 @@ class RestoreView(BaseView):
             return
         self.running = "Starting…"
         await self.refresh(interaction)
-        last_edit = 0.0
+        last_edit = float("-inf")
 
         async def progress(text: str) -> None:
             nonlocal last_edit
