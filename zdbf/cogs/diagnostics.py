@@ -135,19 +135,22 @@ class Diagnostics(commands.Cog, name="Diagnostics"):
     async def health_check(self) -> HealthSnapshot:
         m = self.bot.metrics
         rate = m.error_rate()
+        errs, cmds = m.window_counts()
         lag = self.loop_lag_ms
         warn = self.settings.error_rate_warn_percent
+        judged = rate if cmds >= self.settings.error_rate_min_commands else 0.0
         status = "healthy"
-        if rate >= warn * 2 or lag > self.settings.loop_lag_threshold_ms * 2:
+        if judged >= warn * 2 or lag > self.settings.loop_lag_threshold_ms * 2:
             status = "critical"
-        elif rate >= warn or lag > self.settings.loop_lag_threshold_ms:
+        elif judged >= warn or lag > self.settings.loop_lag_threshold_ms:
             status = "degraded"
         latency = self.bot.latency * 1000 if self.bot.latency == self.bot.latency else -1
         snap = HealthSnapshot(time.time(), status, rate, round(lag, 2), round(latency, 1),
                               round(self.process.memory_info().rss / 1048576, 1), m.commands_total, m.errors_total)
         if status != "healthy" and self.status != status:
-            await self.bot.alerts.send("diagnostics", f"Health is **{status}** - error rate {rate:.1f}%, "
-                                                      f"loop lag {lag:.0f} ms", "error" if status == "critical" else "warning")
+            await self.bot.alerts.send("diagnostics", f"Health is **{status}** - {errs} of {cmds} commands crashed "
+                                                      f"in the last hour ({rate:.1f}%), loop lag {lag:.0f} ms",
+                                       "error" if status == "critical" else "warning")
         self.status = status
         self.history.append(snap)
         await self._persist()
@@ -202,6 +205,7 @@ class Diagnostics(commands.Cog, name="Diagnostics"):
                 "Gateway latency": f"{bot.latency * 1000:.0f} ms",
                 "Error rate (1h)": f"{m.error_rate():.1f}%",
                 "Commands / errors": f"{m.commands_total:,} / {m.errors_total:,}",
+                "Refused": f"{m.rejections_total:,} (cooldowns, permissions, wrong options)",
             }) + (f"\nLag trend `{sparkline(lag_hist)}`" if len(lag_hist) > 1 else ""),
             cards.sep(),
             "**Process**\n" + cards.kv({

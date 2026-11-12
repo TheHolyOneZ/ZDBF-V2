@@ -82,7 +82,8 @@ dashboard = false              # web control panel, see [dashboard] and docs/gui
 [diagnostics]
 loop_lag_threshold_ms = 500
 health_interval_minutes = 5
-error_rate_warn_percent = 10.0
+error_rate_warn_percent = 10.0 # share of commands that crashed (refused commands do not count)
+error_rate_min_commands = 20   # judge the error rate only after this many commands in the last hour
 
 [backup]
 max_per_guild = 25

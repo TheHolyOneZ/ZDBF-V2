@@ -90,6 +90,20 @@
   server administrator could. A check on a group now applies to everything below it, for prefix and
   slash commands, and for groups in extensions too. Update as soon as you can.
 
+### Diagnostics
+- **Refused commands no longer count as errors.** A cooldown, missing permissions or a wrong option
+  used to count toward the error rate, so a few refusals on a quiet bot reported "Health is degraded"
+  with nothing wrong. Only commands that crashed count as errors now. Refusals are counted
+  separately and shown as "Refused" in `/stats` and `/diag overview`.
+- The error rate only affects the health status once enough commands ran in the last hour
+  (`[diagnostics] error_rate_min_commands`, default 20). Every crash still sends its own alert with
+  a reference code. The health alert now says how many commands crashed out of how many.
+
+### Help
+- For bot owners, `/help` lists the built-in modules that are switched off. Searching for one of
+  them (for example "dashboard") explains that the module is off and how to turn it on, instead of
+  "nothing matches".
+
 ### Documentation
 - New documentation layout: `docs/README.md` is the index, `docs/guide/` holds the user guide
   (installation, configuration, commands, automations, backups, scheduler, marketplace, dashboard,

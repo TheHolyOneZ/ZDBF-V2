@@ -32,7 +32,8 @@ A health check runs every 5 minutes. The thresholds are in `[diagnostics]`:
 |---|---|---|
 | `loop_lag_threshold_ms` | `500` | Event-loop lag that counts as degraded |
 | `health_interval_minutes` | `5` | Time between checks |
-| `error_rate_warn_percent` | `10.0` | Share of failing commands that triggers a warning |
+| `error_rate_warn_percent` | `10.0` | Share of commands that crashed in the last hour before health is degraded (twice this is critical) |
+| `error_rate_min_commands` | `20` | The error rate only counts once this many commands ran in the last hour, so one crash on a quiet bot does not flip the status |
 
 ## Alerts
 
@@ -59,7 +60,9 @@ traceback goes to `logs/errors.log` and to the `errors` alert channel under the 
 can match a user's report to the cause. `/diag errors` lists recent ones.
 
 Expected problems, such as missing permissions, a wrong option or a cooldown, are explained to the
-member directly and are not counted as errors.
+member directly. They are not errors: they do not appear in `/diag errors` and do not count toward
+the error rate or the health status. `/stats` and `/diag overview` show them separately as
+"Refused".
 
 ## The database
 

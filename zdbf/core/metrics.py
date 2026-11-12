@@ -25,6 +25,8 @@ class MetricsCollector:
         self._monotonic_start = time.monotonic()
         self.commands_total = 0
         self.errors_total = 0
+        self.rejections_total = 0
+        self.rejection_reasons: Counter[str] = Counter()
         self.messages_seen = 0
         self.interactions_total = 0
         self.command_counter: Counter[str] = Counter()
@@ -46,16 +48,24 @@ class MetricsCollector:
         self.errors_total += 1
         self.recent_errors.append(CommandError(command, error[:500], user_id, guild_id))
 
+    def record_rejection(self, reason: str) -> None:
+        self.rejections_total += 1
+        self.rejection_reasons[reason] += 1
+
     def record_message(self) -> None:
         self.messages_seen += 1
 
     def record_interaction(self) -> None:
         self.interactions_total += 1
 
-    def error_rate(self) -> float:
+    def window_counts(self) -> tuple[int, int]:
         cutoff = time.time() - self.window_seconds
         cmds = sum(1 for _, ts in self.recent_commands if ts >= cutoff)
         errs = sum(1 for e in self.recent_errors if e.timestamp >= cutoff)
+        return errs, cmds
+
+    def error_rate(self) -> float:
+        errs, cmds = self.window_counts()
         return round(errs / cmds * 100, 2) if cmds else 0.0
 
     def get_uptime(self) -> float:
@@ -66,6 +76,7 @@ class MetricsCollector:
             "uptime": self.uptime,
             "commands_processed": self.commands_total,
             "errors": self.errors_total,
+            "rejections": self.rejections_total,
             "messages_seen": self.messages_seen,
             "interactions": self.interactions_total,
             "error_rate": self.error_rate(),

@@ -132,6 +132,7 @@ class Core(commands.Cog, name="General"):
             cards.kv({
                 "Commands run": f"{m.commands_total:,}",
                 "Errors": f"{m.errors_total:,} ({m.error_rate():.1f}% last hour)",
+                "Refused": f"{m.rejections_total:,}",
                 "Messages seen": f"{m.messages_seen:,}",
                 "Interactions": f"{m.interactions_total:,}",
                 "Extensions": len(bot.extensions),

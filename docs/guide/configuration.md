@@ -67,7 +67,7 @@ Generate a cluster secret with `python -c "import secrets; print(secrets.token_u
 | `[extensions]` | Extension folder, auto load, hot reload, blacklist |
 | `[cooldowns]` | The default cooldown for commands without their own |
 | `[modules]` | Which built-in modules load |
-| `[diagnostics]` | Lag and error thresholds, health check interval |
+| `[diagnostics]` | Lag and error thresholds, health check interval, how many commands before the error rate counts |
 | `[backup]` | Backups per server, cooldown, automatic backups, retention |
 | `[scheduler]` | Time zone and task limit per server |
 | `[shards]` | Failures before a shard alert |
@@ -210,7 +210,8 @@ dashboard = false              # web control panel, see [dashboard] and docs/gui
 [diagnostics]
 loop_lag_threshold_ms = 500
 health_interval_minutes = 5
-error_rate_warn_percent = 10.0
+error_rate_warn_percent = 10.0 # share of commands that crashed (refused commands do not count)
+error_rate_min_commands = 20   # judge the error rate only after this many commands in the last hour
 
 [backup]
 max_per_guild = 25

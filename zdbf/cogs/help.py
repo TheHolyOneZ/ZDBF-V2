@@ -13,6 +13,7 @@ from discord import app_commands, ui
 from discord.ext import commands
 
 from .. import __version__
+from ..core.extensions import BUILTIN_MODULES
 from ..core.permissions import access_level
 from ..ui import BaseView, FormField, FormModal, Glyph, button, cards, link_button, nav_row, row
 from ..utils import plural
@@ -293,9 +294,10 @@ class HelpView(BaseView):
     SUB_PER_PAGE = 5
 
     def __init__(self, bot: ZDBFBot, author_id: int, categories: list[Category], prefix: str, *,
-                 banner: str | None = None) -> None:
+                 banner: str | None = None, modules_off: list[str] | None = None) -> None:
         super().__init__(author_id=author_id, timeout=600)
         self.bot = bot
+        self.modules_off = modules_off or []
         self.categories = categories
         self.prefix = prefix
         self.banner = banner
@@ -405,8 +407,10 @@ class HelpView(BaseView):
             "### Getting started\n"
             f"{Glyph.BULLET} Every command works as `/command` and as `{self.prefix}command`.\n"
             f"{Glyph.BULLET} Open a category, or press **Search** to find a command by name or keyword.\n"
-            f"{Glyph.BULLET} `{self.prefix}help <command>` jumps straight to one command.\n\n"
-            "### Categories" + (f"\n-# Page {self.home_page + 1} of {pages}" if pages > 1 else "")))
+            f"{Glyph.BULLET} `{self.prefix}help <command>` jumps straight to one command.\n"
+            + (f"-# Switched off: {', '.join(f'`{m}`' for m in self.modules_off)}. "
+               "Turn one on with `/fw modules`.\n" if self.modules_off else "")
+            + "\n### Categories" + (f"\n-# Page {self.home_page + 1} of {pages}" if pages > 1 else "")))
         start = self.home_page * self.HOME_PER_PAGE
         for cat in self.categories[start:start + self.HOME_PER_PAGE]:
             tag = "  ·  bot owner" if cat.owner_only else ""
@@ -518,8 +522,12 @@ class HelpView(BaseView):
             box = self._list(cat.name, subtitle, cat.entries, "*No commands here.*")
         elif self.mode == "search":
             found = plural(len(self.results), "result")
-            box = self._list("Search", f"“{self.query}” · {found}", self.results,
-                             "*Nothing matches. Try a shorter word, or open a category.*")
+            off = (next((m for m in self.modules_off if m in self.query or self.query in m), None)
+                   if len(self.query) >= 3 else None)
+            empty = (f"The `{off}` module is switched off, so its commands do not exist yet. Turn it on with "
+                     f"`/fw modules module:{off} enabled:true`." if off
+                     else "*Nothing matches. Try a shorter word, or open a category.*")
+            box = self._list("Search", f"“{self.query}” · {found}", self.results, empty)
         elif self.mode == "command" and self.command is not None:
             box = self._command()
         else:
@@ -534,7 +542,10 @@ async def _prefix(bot: ZDBFBot, ctx: commands.Context[Any]) -> str:
 
 async def help_view(ctx: commands.Context[Any]) -> HelpView:
     bot: ZDBFBot = ctx.bot
-    return HelpView(bot, ctx.author.id, await collect(ctx), await _prefix(bot, ctx), banner=await resolve_banner(bot))
+    off = ([key for key, module in BUILTIN_MODULES.items() if module not in bot.extensions and key != "admin"]
+           if await bot.is_owner(ctx.author) else [])
+    return HelpView(bot, ctx.author.id, await collect(ctx), await _prefix(bot, ctx), banner=await resolve_banner(bot),
+                    modules_off=off)
 
 
 def resolve_command(bot: ZDBFBot, name: str, prefix: str) -> commands.Command[Any, ..., Any] | None:

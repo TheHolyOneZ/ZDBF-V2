@@ -97,8 +97,11 @@ async def handle_command_error(bot: ZDBFBot, ctx: commands.Context[Any], error: 
     usage = f"{ctx.clean_prefix}{ctx.command.qualified_name} {ctx.command.signature}".strip() if ctx.command else None
     level, title, message, unexpected = describe_error(error, usage=usage)
     command_name = ctx.command.qualified_name if ctx.command else "unknown"
-    bot.metrics.record_error(command_name, f"{type(_unwrap(error)).__name__}: {_unwrap(error)}",
-                             ctx.author.id, ctx.guild.id if ctx.guild else None)
+    if unexpected:
+        bot.metrics.record_error(command_name, f"{type(_unwrap(error)).__name__}: {_unwrap(error)}",
+                                 ctx.author.id, ctx.guild.id if ctx.guild else None)
+    else:
+        bot.metrics.record_rejection(type(_unwrap(error)).__name__)
 
     if unexpected:
         ref = secrets.token_hex(3)
@@ -126,7 +129,11 @@ async def handle_app_command_error(
 ) -> None:
     level, title, message, unexpected = describe_error(error)
     command_name = interaction.command.qualified_name if interaction.command else "unknown"
-    bot.metrics.record_error(command_name, str(_unwrap(error)), interaction.user.id, interaction.guild_id)
+    if unexpected:
+        bot.metrics.record_error(command_name, f"{type(_unwrap(error)).__name__}: {_unwrap(error)}",
+                                 interaction.user.id, interaction.guild_id)
+    else:
+        bot.metrics.record_rejection(type(_unwrap(error)).__name__)
     if unexpected:
         ref = secrets.token_hex(3)
         log.error("unhandled app command error in %s [ref %s]", command_name, ref, exc_info=_unwrap(error))

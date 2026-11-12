@@ -113,6 +113,7 @@ class DiagnosticsSettings(_Section):
     loop_lag_threshold_ms: int = Field(500, ge=10)
     health_interval_minutes: int = Field(5, ge=1, le=1440)
     error_rate_warn_percent: float = Field(10.0, ge=0, le=100)
+    error_rate_min_commands: int = Field(20, ge=1, le=1_000_000)
 
 
 class BackupSettings(_Section):
