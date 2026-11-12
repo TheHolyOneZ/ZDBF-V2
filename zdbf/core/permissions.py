@@ -18,6 +18,7 @@ __all__ = [
     "guild_owner_or_owner",
     "is_owner_only",
     "owner_only",
+    "parent_checks",
     "role_permission_check",
 ]
 
@@ -110,6 +111,17 @@ def admin_or_owner():
         raise commands.MissingPermissions(["manage_guild"])
 
     return _tagged_check(predicate, "Manage Server permission")
+
+
+async def parent_checks(ctx: commands.Context[Any]) -> bool:
+    command = ctx.command
+    parent = command.parent if command is not None else None
+    while parent is not None:
+        for predicate in parent.checks:
+            if not await discord.utils.maybe_coroutine(predicate, ctx):
+                raise commands.CheckFailure(f"You cannot use the `{parent.qualified_name}` commands.")
+        parent = parent.parent
+    return True
 
 
 async def role_permission_check(ctx: commands.Context[ZDBFBot]) -> bool:

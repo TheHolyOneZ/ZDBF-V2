@@ -30,6 +30,7 @@ from .engine import (
 )
 from .persistent import PERSISTENT_ITEMS
 from .templates import TEMPLATES, Runtime, level_for_xp, xp_for_level
+from .transcripts import TranscriptStore
 
 if TYPE_CHECKING:
     from ...core.bot import ZDBFBot
@@ -133,6 +134,7 @@ class Automations(commands.Cog, name="Automations"):
         self.guilds: dict[int, dict[str, Automation]] = {}
         self.index: dict[str, Automation] = {}
         self.runtime = Runtime(self)
+        self.transcripts = TranscriptStore()
         self._session: aiohttp.ClientSession | None = None
         self._dirty: set[str] = set()
         self._ticker: asyncio.Task[None] | None = None

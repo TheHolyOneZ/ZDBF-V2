@@ -26,6 +26,7 @@ async def main() -> None:
         os.chdir(tmp)
         config = Config().load()
         config.settings.modules.cluster = False
+        config.settings.modules.dashboard = True
         bot = ZDBFBot(config)
         await bot.__aenter__()
         await bot.db.connect()
@@ -58,8 +59,8 @@ async def main() -> None:
         budget = bot.slash_command_count()
         out += [f"**{budget['top_level']}** top-level slash commands · **{budget['with_subcommands']}** including "
                 "subcommands (Discord allows 100 top-level).", ""]
-        (ROOT / "docs" / "COMMANDS.md").write_text("\n".join(out), encoding="utf-8")
-        print(f"wrote docs/COMMANDS.md ({sum(len(v) for v in by_cog.values())} commands)")
+        (ROOT / "docs" / "guide" / "commands.md").write_text("\n".join(out), encoding="utf-8")
+        print(f"wrote docs/guide/commands.md ({sum(len(v) for v in by_cog.values())} commands)")
         await bot.close()
 
 

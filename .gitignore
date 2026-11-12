@@ -19,6 +19,10 @@
 *.db-shm
 *.log
 
+# The dashboard's runtime files (config, database) stay on the web host
+/dashboard/data/*
+!/dashboard/data/.htaccess
+
 # Extensions you install (marketplace or your own) stay local;
 # only the bundled example and readme belong to the repository.
 /extensions/*

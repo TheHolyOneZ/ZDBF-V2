@@ -17,6 +17,15 @@ if TYPE_CHECKING:
     from ...core.bot import ZDBFBot
 
 Progress = Callable[[str], Awaitable[None]]
+CALL_TIMEOUT = 25.0
+
+
+class RateLimited(Exception):
+    def __str__(self) -> str:
+        return "Discord is rate limiting this change, try again in about 10 minutes"
+
+
+WRITE_ERRORS = (discord.HTTPException, RateLimited)
 
 
 @dataclass
@@ -33,10 +42,13 @@ class RestoreReport:
     planned: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     elapsed: float = 0.0
+    limited: int = 0
 
     def fail(self, what: str, exc: BaseException) -> None:
         self.failed += 1
         reason = "missing permissions" if isinstance(exc, discord.Forbidden) else str(exc)[:80]
+        if isinstance(exc, RateLimited):
+            self.limited += 1
         self.errors.append(f"{what}: {reason}")
 
 
@@ -70,6 +82,12 @@ class Restorer:
 
     async def _pause(self) -> None:
         await asyncio.sleep(0.35)
+
+    async def _call(self, request: Awaitable[Any]) -> Any:
+        try:
+            return await asyncio.wait_for(request, timeout=CALL_TIMEOUT)
+        except TimeoutError:
+            raise RateLimited from None
 
     @property
     def _top(self) -> discord.Role:
@@ -145,10 +163,10 @@ class Restorer:
                             self.report.updated += 1
                             continue
                         try:
-                            await current.edit(reason=self.reason, **changes)
+                            await self._call(current.edit(reason=self.reason, **changes))
                             self.report.updated += 1
                             await self._pause()
-                        except discord.HTTPException as exc:
+                        except WRITE_ERRORS as exc:
                             self.report.fail(f"role {rd['name']}", exc)
                         continue
                 self.report.skipped += 1
@@ -160,19 +178,19 @@ class Restorer:
                 kwargs: dict[str, Any] = {}
                 if rd.get("unicode_emoji") and "ROLE_ICONS" in self.guild.features:
                     kwargs["display_icon"] = rd["unicode_emoji"]
-                role = await self.guild.create_role(
+                role = await self._call(self.guild.create_role(
                     name=rd["name"], colour=discord.Colour(rd.get("color", 0)), hoist=rd.get("hoist", False),
                     mentionable=rd.get("mentionable", False), permissions=discord.Permissions(rd.get("permissions_value", 0)),
-                    reason=self.reason, **kwargs)
+                    reason=self.reason, **kwargs))
                 self.role_map[rd["id"]] = role
                 self.report.created += 1
                 await self._pause()
-            except discord.HTTPException as exc:
+            except WRITE_ERRORS as exc:
                 self.report.fail(f"role {rd['name']}", exc)
         if self.update_existing and "default_role_permissions" in self.snap and not self.dry_run:
-            with contextlib.suppress(discord.HTTPException):
-                await self.guild.default_role.edit(permissions=discord.Permissions(self.snap["default_role_permissions"]),
-                                                   reason=self.reason)
+            with contextlib.suppress(*WRITE_ERRORS):
+                await self._call(self.guild.default_role.edit(permissions=discord.Permissions(self.snap["default_role_permissions"]),
+                                                   reason=self.reason))
         if not self.dry_run:
             await self._reorder_roles(roles)
 
@@ -183,8 +201,8 @@ class Restorer:
             return
         top = self._top.position - 1
         positions = {role: max(1, top - i) for i, role in enumerate(movable)}
-        with contextlib.suppress(discord.HTTPException):
-            await self.guild.edit_role_positions(positions=positions, reason=self.reason)  # type: ignore[arg-type]
+        with contextlib.suppress(*WRITE_ERRORS):
+            await self._call(self.guild.edit_role_positions(positions=positions, reason=self.reason))  # type: ignore[arg-type]
 
     async def _categories(self) -> None:
         cats = self.snap.get("categories", [])
@@ -194,24 +212,45 @@ class Restorer:
             current = existing.get(cd["name"].lower())
             if current is not None:
                 self.cat_map[cd["id"]] = current
-                if self.update_existing and not self.dry_run:
-                    with contextlib.suppress(discord.HTTPException):
-                        await current.edit(overwrites=self._overwrites(cd.get("overwrites", [])), reason=self.reason)
+                wanted = self._overwrites(cd.get("overwrites", []))
+                if self.update_existing and current.overwrites != wanted:
+                    if self.dry_run:
                         self.report.updated += 1
                         continue
+                    try:
+                        await self._call(current.edit(overwrites=wanted, reason=self.reason))
+                        self.report.updated += 1
+                        await self._pause()
+                    except WRITE_ERRORS as exc:
+                        self.report.fail(f"category {cd['name']}", exc)
+                    continue
                 self.report.skipped += 1
                 continue
             if self.dry_run:
                 self._plan(f"category {cd['name']}")
                 continue
             try:
-                self.cat_map[cd["id"]] = await self.guild.create_category(
+                self.cat_map[cd["id"]] = await self._call(self.guild.create_category(
                     cd["name"], overwrites=self._overwrites(cd.get("overwrites", [])), position=cd.get("position"),
-                    reason=self.reason)
+                    reason=self.reason))
                 self.report.created += 1
                 await self._pause()
-            except discord.HTTPException as exc:
+            except WRITE_ERRORS as exc:
                 self.report.fail(f"category {cd['name']}", exc)
+
+    def _channel_changes(self, current: Any, cd: dict[str, Any], key: str) -> dict[str, Any]:
+        changes: dict[str, Any] = {}
+        wanted = self._overwrites(cd.get("overwrites", []))
+        if current.overwrites != wanted:
+            changes["overwrites"] = wanted
+        if key == "text_channels":
+            if (current.topic or None) != (cd.get("topic") or None):
+                changes["topic"] = cd.get("topic")
+            if current.slowmode_delay != cd.get("slowmode_delay", 0):
+                changes["slowmode_delay"] = cd.get("slowmode_delay", 0)
+            if current.nsfw != cd.get("nsfw", False):
+                changes["nsfw"] = cd.get("nsfw", False)
+        return changes
 
     async def _channels(self) -> None:
         kinds = (
@@ -228,20 +267,18 @@ class Restorer:
                 category = self.cat_map.get(cd.get("category_id") or 0)
                 current = existing.get(cd["name"].lower())
                 if current is not None:
-                    if self.update_existing and not self.dry_run:
+                    kwargs = self._channel_changes(current, cd, key) if self.update_existing else {}
+                    if kwargs:
+                        if self.dry_run:
+                            self.report.updated += 1
+                            continue
                         try:
-                            kwargs: dict[str, Any] = {"overwrites": self._overwrites(cd.get("overwrites", [])),
-                                                      "reason": self.reason}
-                            if key == "text_channels":
-                                kwargs.update(topic=cd.get("topic"), slowmode_delay=cd.get("slowmode_delay", 0),
-                                              nsfw=cd.get("nsfw", False))
-                            await current.edit(**kwargs)  # type: ignore[union-attr]
+                            await self._call(current.edit(reason=self.reason, **kwargs))  # type: ignore[union-attr]
                             self.report.updated += 1
                             await self._pause()
-                            continue
-                        except discord.HTTPException as exc:
+                        except WRITE_ERRORS as exc:
                             self.report.fail(f"{icon}{cd['name']}", exc)
-                            continue
+                        continue
                     self.report.skipped += 1
                     continue
                 if self.dry_run:
@@ -251,29 +288,29 @@ class Restorer:
                 try:
                     match key:
                         case "text_channels":
-                            await self.guild.create_text_channel(
+                            await self._call(self.guild.create_text_channel(
                                 cd["name"], category=category, topic=cd.get("topic"), nsfw=cd.get("nsfw", False),
                                 slowmode_delay=cd.get("slowmode_delay", 0), overwrites=overwrites,
-                                news=cd.get("news", False) and "NEWS" in self.guild.features, reason=self.reason)
+                                news=cd.get("news", False) and "NEWS" in self.guild.features, reason=self.reason))
                         case "voice_channels":
-                            await self.guild.create_voice_channel(
+                            await self._call(self.guild.create_voice_channel(
                                 cd["name"], category=category, bitrate=min(cd.get("bitrate", 64000),
                                                                            int(self.guild.bitrate_limit)),
                                 user_limit=cd.get("user_limit", 0), rtc_region=cd.get("rtc_region"),
-                                overwrites=overwrites, reason=self.reason)
+                                overwrites=overwrites, reason=self.reason))
                         case "forum_channels":
                             tags = [discord.ForumTag(name=t["name"], emoji=t.get("emoji"), moderated=t.get("moderated", False))
                                     for t in cd.get("tags", [])][:20]
-                            await self.guild.create_forum(
+                            await self._call(self.guild.create_forum(
                                 cd["name"], category=category, topic=cd.get("topic"), nsfw=cd.get("nsfw", False),
                                 slowmode_delay=cd.get("slowmode_delay", 0), overwrites=overwrites,
-                                available_tags=tags, reason=self.reason)
+                                available_tags=tags, reason=self.reason))
                         case "stage_channels":
-                            await self.guild.create_stage_channel(cd["name"], category=category, overwrites=overwrites,
-                                                                  reason=self.reason)
+                            await self._call(self.guild.create_stage_channel(cd["name"], category=category, overwrites=overwrites,
+                                                                  reason=self.reason))
                     self.report.created += 1
                     await self._pause()
-                except discord.HTTPException as exc:
+                except WRITE_ERRORS as exc:
                     self.report.fail(f"{icon}{cd['name']}", exc)
 
     async def _emojis(self) -> None:
@@ -297,12 +334,12 @@ class Restorer:
                 free[ed.get("animated", False)] -= 1
                 continue
             try:
-                await self.guild.create_custom_emoji(name=ed["name"], image=base64.b64decode(ed["image_b64"]),
-                                                     reason=self.reason)
+                await self._call(self.guild.create_custom_emoji(name=ed["name"], image=base64.b64decode(ed["image_b64"]),
+                                                     reason=self.reason))
                 free[ed.get("animated", False)] -= 1
                 self.report.created += 1
                 await self._pause()
-            except discord.HTTPException as exc:
+            except WRITE_ERRORS as exc:
                 self.report.fail(f"emoji :{ed['name']}:", exc)
 
     async def _stickers(self) -> None:
@@ -323,14 +360,14 @@ class Restorer:
                 continue
             ext = {"png": "png", "apng": "png", "gif": "gif"}.get(str(sd.get("format", "png")).lower(), "png")
             try:
-                await self.guild.create_sticker(
+                await self._call(self.guild.create_sticker(
                     name=sd["name"], description=sd.get("description") or sd["name"], emoji=sd.get("emoji") or "⭐",
                     file=discord.File(io.BytesIO(base64.b64decode(sd["image_b64"])), filename=f"sticker.{ext}"),
-                    reason=self.reason)
+                    reason=self.reason))
                 free -= 1
                 self.report.created += 1
                 await self._pause()
-            except discord.HTTPException as exc:
+            except WRITE_ERRORS as exc:
                 self.report.fail(f"sticker {sd['name']}", exc)
 
     def _channel_named(self, name: str | None, kind: type) -> Any:
@@ -358,9 +395,9 @@ class Restorer:
         if system := self._channel_named(s.get("system_channel"), discord.TextChannel):
             edits["system_channel"] = system
         try:
-            await self.guild.edit(reason=self.reason, **edits)
+            await self._call(self.guild.edit(reason=self.reason, **edits))
             self.report.updated += 1
-        except discord.HTTPException as exc:
+        except WRITE_ERRORS as exc:
             self.report.fail("server settings", exc)
         if "COMMUNITY" in self.guild.features:
             community: dict[str, Any] = {}
@@ -372,8 +409,8 @@ class Restorer:
                 community["description"] = s["description"]
             if community:
                 try:
-                    await self.guild.edit(reason=self.reason, **community)
-                except discord.HTTPException as exc:
+                    await self._call(self.guild.edit(reason=self.reason, **community))
+                except WRITE_ERRORS as exc:
                     self.report.fail("community settings", exc)
 
     async def _images(self) -> None:
@@ -390,9 +427,9 @@ class Restorer:
         if g.get("banner_b64") and self.guild.premium_tier >= 2:
             edits["banner"] = base64.b64decode(g["banner_b64"])
         try:
-            await self.guild.edit(reason=self.reason, **edits)
+            await self._call(self.guild.edit(reason=self.reason, **edits))
             self.report.updated += 1
-        except discord.HTTPException as exc:
+        except WRITE_ERRORS as exc:
             self.report.fail("icon/banner", exc)
 
     async def _member_roles(self) -> None:
@@ -433,14 +470,14 @@ class Restorer:
                 continue
             try:
                 if add:
-                    await member.add_roles(*add, reason=self.reason)
+                    await self._call(member.add_roles(*add, reason=self.reason))
                 if remove:
-                    await member.remove_roles(*remove, reason=self.reason)
+                    await self._call(member.remove_roles(*remove, reason=self.reason))
                 self.report.roles_added += len(add)
                 self.report.roles_removed += len(remove)
                 self.report.members_changed += 1
                 await self._pause()
-            except discord.HTTPException as exc:
+            except WRITE_ERRORS as exc:
                 self.report.fail(f"member {md.get('username', md['user_id'])}", exc)
             if i and i % 50 == 0:
                 await self._step(f"Member roles · {i}/{len(data)}")

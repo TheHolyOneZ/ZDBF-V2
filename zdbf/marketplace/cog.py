@@ -5,10 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import importlib.util
 import logging
-import re
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -21,6 +18,7 @@ from ..core.permissions import owner_only
 from ..core.storage import global_file_handler
 from ..ui import BaseView, Status, button, cards, confirm, row
 from .client import Extension, KeyNotActivated, MarketplaceClient, MarketplaceError, safety_scan
+from .deps import MISSING_RE, describe_command, install_packages, packages_for, required_packages
 from .key import KEY_FILE, ensure_key
 from .views import LicenseView, MarketplaceView
 
@@ -32,36 +30,46 @@ log = logging.getLogger("zdbf.marketplace")
 ACTIVATION_HELP = (
     "Your **ZSync ZDBF Key** is not activated yet (or was deactivated).\n\n"
     "**How to activate it**\n"
-    "1. Join the official ZSync Discord: https://discord.gg/U8sssc6xbv\n"
-    "2. Verify yourself on the server.\n"
-    "3. Open a ticket for **ZSync ZDBF Key activation**.\n"
-    "4. Follow the instructions in the ticket.\n\n"
-    "Show your key with `/marketplace key` (bot owner, sent privately)."
+    "1. Show your key with `/marketplace key` (bot owner, sent privately).\n"
+    "2. Fill in the form at https://zsync.eu/extension/activate.php\n"
+    "3. Confirm the link we email you.\n"
+    "4. You get a second email as soon as your key is activated.\n\n"
+    "Questions? Join the ZSync Discord: https://discord.gg/GMqmnvdevD"
 )
-PIP_NAMES = {
-    "cv2": "opencv-python", "PIL": "Pillow", "yaml": "PyYAML", "dotenv": "python-dotenv", "sklearn": "scikit-learn",
-    "bs4": "beautifulsoup4", "dateutil": "python-dateutil", "Crypto": "pycryptodome", "googleapiclient":
-    "google-api-python-client", "google.generativeai": "google-generativeai", "nacl": "PyNaCl", "magic": "python-magic",
-    "jwt": "PyJWT", "serial": "pyserial", "usb": "pyusb", "wx": "wxPython", "socks": "PySocks", "chat_exporter":
-    "chat-exporter", "yt_dlp": "yt-dlp",
-}
-NEVER_INSTALL = {"discord", "zdbf", "extensions", "atomic_file_system"}
-MISSING_RE = re.compile(r"No module named '([\w.]+)'")
-
-
 class InstallView(BaseView):
     def __init__(self, cog: Marketplace, ext: Extension, source: str, scan: dict[str, Any], author_id: int) -> None:
-        super().__init__(author_id=author_id, timeout=300)
+        super().__init__(author_id=author_id, timeout=900)
         self.cog = cog
         self.ext = ext
         self.source = source
         self.scan = scan
         self.stage = "confirm"
         self.result: str | None = None
+        self.auto = cog.bot.config.settings.marketplace.auto_install_packages
+        self.packages = required_packages(scan, own_module=ext.module_name)
+        self.optional = packages_for(scan.get("optional_imports", []))
 
     @property
     def path(self) -> Path:
         return self.cog.bot.ext.directory / self.ext.filename
+
+    def _package_lines(self) -> list[str]:
+        if not self.packages and not self.optional:
+            return []
+        lines = []
+        if self.packages:
+            names = ", ".join(f"`{p}`" for p in self.packages)
+            if self.auto:
+                lines.append(f"{Status.WARN} **Needs packages that are not installed:** {names}\n"
+                             f"-# **Install and load** runs `{describe_command(self.packages)}` in the bot's "
+                             "environment first, then loads the extension.")
+            else:
+                lines.append(f"{Status.WARN} **Missing packages:** {names}\n"
+                             "-# Install them with `/marketplace fixdeps` after installing.")
+        if self.optional:
+            lines.append("-# Optional packages it can use but does not need: "
+                         + ", ".join(f"`{p}`" for p in self.optional))
+        return lines
 
     def build(self) -> None:
         self.clear_items()
@@ -69,16 +77,13 @@ class InstallView(BaseView):
         if self.stage == "confirm":
             flags = self.scan.get("flags", [])
             imports = ", ".join(f"`{m}`" for m in self.scan.get("imports", [])[:25]) or "-"
-            missing = [m for m in self.scan.get("imports", []) if self.cog.missing_module(m)]
             body: list[Any] = [
                 cards.kv({"File": f"`{self.path}`", "Size": f"{len(self.source):,} bytes · {self.scan.get('lines', 0)} lines",
                           "Entry point": f"{Status.OK} `setup()` found" if self.scan.get("has_setup")
                           else f"{Status.WARN} no `async def setup`"}),
                 f"**Imports** {imports}",
+                *self._package_lines(),
             ]
-            if missing:
-                body.append(f"{Status.WARN} **Missing packages:** {', '.join(f'`{m}`' for m in missing)}"
-                            "\n-# Install them with `/marketplace fixdeps` after installing.")
             if flags:
                 body.append(f"{Status.WARN} **Review before loading:** " + ", ".join(flags)
                             + "\n-# Informational only - these are common in legitimate extensions too.")
@@ -87,10 +92,16 @@ class InstallView(BaseView):
             if not self.scan.get("ok"):
                 body.append(f"{Status.ERROR} {self.scan.get('error')}")
             box = cards.card(f"Install {ext.title} v{ext.version}?", *body, accent="warning")
-            box.add_item(row(button("Install", self._install, style=discord.ButtonStyle.success,
-                                    disabled=not self.scan.get("ok")),
-                             button("Cancel", self._cancel)))
+            blocked = not self.scan.get("ok")
+            with_deps = bool(self.packages) and self.auto
+            box.add_item(row(
+                button("Install and load", self._install_and_load, style=discord.ButtonStyle.success, disabled=blocked),
+                button("Install file only" if with_deps else "Install only", self._install_only, disabled=blocked),
+                button("Cancel", self._cancel)))
             self.add_item(box)
+            return
+        if self.stage == "working":
+            self.add_item(cards.card(f"Installing {ext.title}", self.result or "Working...", accent="muted"))
             return
         if self.stage == "installed":
             loaded = self.cog.bot.ext.module_for(ext.module_name) in self.cog.bot.extensions
@@ -102,27 +113,79 @@ class InstallView(BaseView):
         self.add_item(cards.card(ext.title, self.result or "Done.",
                                  accent="success" if self.stage == "loaded" else "muted"))
 
-    async def _install(self, interaction: discord.Interaction[Any]) -> None:
-        ok = await global_file_handler.atomic_write(self.path, self.source)
-        if not ok:
+    async def _working(self, interaction: discord.Interaction[Any], text: str) -> None:
+        self.stage, self.result = "working", text
+        await self.refresh(interaction)
+
+    async def _owner(self, interaction: discord.Interaction[Any]) -> bool:
+        if await self.cog.bot.is_owner(interaction.user):
+            return True
+        await interaction.response.send_message(
+            view=cards.error("Owner only", "Only the bot owner can install extensions."), ephemeral=True)
+        return False
+
+    async def _install_only(self, interaction: discord.Interaction[Any]) -> None:
+        await self._run(interaction, load=False)
+
+    async def _install_and_load(self, interaction: discord.Interaction[Any]) -> None:
+        await self._run(interaction, load=True)
+
+    async def _run(self, interaction: discord.Interaction[Any], *, load: bool) -> None:
+        if not await self._owner(interaction):
+            return
+        await interaction.response.defer()
+        await self._working(interaction, "Saving the file...")
+        if not await global_file_handler.atomic_write(self.path, self.source):
             self.stage, self.result = "failed", f"{Status.ERROR} Could not write `{self.path}`."
             await self.refresh(interaction)
+            self.stop()
             return
         await self.cog.record_install(self.ext, self.source)
-        problems = self.cog.bot.plugins.preflight(self.ext.module_name, self.path)
-        self.stage = "installed"
-        self.result = f"Saved to `{self.path}`." + (
-            "\n" + "\n".join(f"{Status.WARN} {p}" for p in problems) if problems else "")
+        notes = [f"{Status.OK} Saved to `{self.path}`."]
+        notes += [f"{Status.WARN} {p}" for p in self.cog.bot.plugins.preflight(self.ext.module_name, self.path)]
+        if load and self.packages and self.auto:
+            await self._working(interaction, "\n".join(notes) + f"\n{Status.WARN} Installing "
+                                + ", ".join(f"`{p}`" for p in self.packages) + "... this can take a few minutes.")
+            pip = await install_packages(self.packages)
+            if not pip.ok:
+                notes.append(f"{Status.ERROR} Package install failed: {pip.error}")
+                if pip.output:
+                    notes.append(cards.codeblock("\n".join(pip.output)))
+                notes.append("-# The extension was not loaded. Fix the packages, then use **Load now** "
+                             "or `/marketplace fixdeps`.")
+                self.stage, self.result = "installed", cards.truncate("\n".join(notes), 3500)
+                await self.refresh(interaction)
+                return
+            notes.append(f"{Status.OK} Installed with {pip.tool}: " + ", ".join(f"`{p}`" for p in pip.packages))
+            self.packages = required_packages(self.scan, own_module=self.ext.module_name)
+        if not load:
+            self.stage, self.result = "installed", "\n".join(notes)
+            await self.refresh(interaction)
+            return
+        await self._working(interaction, "\n".join(notes) + f"\n{Status.WARN} Loading the extension...")
+        await self._finish_load(interaction, notes)
+
+    async def _finish_load(self, interaction: discord.Interaction[Any], notes: list[str]) -> None:
+        res = await self.cog.bot.ext.reload(self.ext.module_name)
+        if res.ok:
+            notes.append(f"{Status.OK} {res.action.title()}ed in {res.elapsed_ms:.0f} ms.")
+            self.stage, self.result = "loaded", "\n".join(notes)
+            await self.refresh(interaction)
+            self.stop()
+            return
+        notes.append(f"{Status.ERROR} {res.error}")
+        missing = packages_for(MISSING_RE.findall(res.error or ""))
+        notes.append(f"-# Still missing: {', '.join(f'`{p}`' for p in missing)}. Try `/marketplace fixdeps`."
+                     if missing else "-# Check the error, then use **Load now** to try again.")
+        self.stage, self.result = "installed", cards.truncate("\n".join(notes), 3500)
         await self.refresh(interaction)
 
     async def _load(self, interaction: discord.Interaction[Any]) -> None:
+        if not await self._owner(interaction):
+            return
         await interaction.response.defer()
-        res = await self.cog.bot.ext.reload(self.ext.module_name)
-        self.stage = "loaded" if res.ok else "failed"
-        self.result = (f"{Status.OK} {res.action.title()}ed in {res.elapsed_ms:.0f} ms." if res.ok
-                       else f"{Status.ERROR} {res.error}\n-# Missing packages? Try `/marketplace fixdeps`.")
-        await self.refresh(interaction)
-        self.stop()
+        await self._working(interaction, f"{Status.WARN} Loading the extension...")
+        await self._finish_load(interaction, [])
 
     async def _cancel(self, interaction: discord.Interaction[Any]) -> None:
         self.stage, self.result = "cancelled", "Installation cancelled."
@@ -169,15 +232,6 @@ class Marketplace(commands.Cog, name="Marketplace"):
         self.accepted.add(ctx.author.id)
         await self.bot.db.kv_set(self.KV_LICENSE, sorted(self.accepted))
         return True
-
-    def missing_module(self, name: str) -> bool:
-        top = name.split(".")[0]
-        if top in sys.stdlib_module_names or top in NEVER_INSTALL:
-            return False
-        try:
-            return importlib.util.find_spec(top) is None
-        except (ImportError, ValueError):
-            return True
 
     async def record_install(self, ext: Extension, source: str) -> None:
         self.installed[ext.filename] = {"id": ext.id, "title": ext.title, "version": ext.version,
@@ -365,32 +419,22 @@ class Marketplace(commands.Cog, name="Marketplace"):
         log_file = Path(self.bot.config.settings.logging.directory) / "zdbf.log"
         if log_file.exists():
             sources.append((await asyncio.to_thread(log_file.read_text, encoding="utf-8", errors="ignore"))[-500_000:])
-        modules = {m for text in sources for m in MISSING_RE.findall(text)}
-        packages = sorted({PIP_NAMES.get(m, PIP_NAMES.get(m.split(".")[0], m.split(".")[0]))
-                           for m in modules if self.missing_module(m)})
+        packages = packages_for({m for text in sources for m in MISSING_RE.findall(text)})
         if not packages:
             await ctx.send(view=cards.success("No missing packages", "No `ModuleNotFoundError` for an uninstalled "
                                                                     "package was found."))
             return
         view = await confirm(ctx, "Install packages?", "\n".join(f"• `{p}`" for p in packages)
-                             + f"\n\nRuns `{Path(sys.executable).name} -m pip install` in the bot's environment.",
+                             + f"\n\nRuns `{describe_command(packages)}` in the bot's environment.",
                              confirm_label="Install", danger=False)
         if not view.value or view.interaction is None:
             return
-        proc = await asyncio.create_subprocess_exec(sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
-                                                    *packages, stdout=asyncio.subprocess.PIPE,
-                                                    stderr=asyncio.subprocess.STDOUT)
-        try:
-            out, _ = await asyncio.wait_for(proc.communicate(), timeout=600)
-        except TimeoutError:
-            proc.kill()
-            await view.interaction.followup.send(view=cards.error("pip timed out", "Installation took over 10 minutes."))
-            return
-        ok = proc.returncode == 0
-        tail = out.decode(errors="ignore").strip().splitlines()[-8:]
-        importlib.invalidate_caches()
+        pip = await install_packages(packages)
+        ok = pip.ok
+        tail = pip.output or [pip.error or ""]
         retry = BaseView(author_id=ctx.author.id)
-        box = cards.card("Packages installed" if ok else "pip reported an error", cards.codeblock("\n".join(tail)), accent="success" if ok else "error")
+        box = cards.card("Packages installed" if ok else f"{pip.tool} reported an error",
+                         cards.codeblock("\n".join(tail)), accent="success" if ok else "error")
 
         async def retry_failed(interaction: discord.Interaction[Any]) -> None:
             await interaction.response.defer()

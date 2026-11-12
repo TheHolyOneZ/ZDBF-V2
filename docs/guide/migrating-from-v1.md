@@ -28,7 +28,7 @@ The V1 folder is only read. Stop the V1 bot first so its databases are not in us
 
 * **Commands are grouped.** `/backupcreate` is now `/backup create`, `/fw_diagnostics` is
   `/diag overview`, `/eh_list` is `/eventhooks list` and so on. The **old names still work as
-  prefix commands** (`!backupcreate`). See [COMMANDS.md](COMMANDS.md) for the mapping.
+  prefix commands** (`!backupcreate`). The [command reference](commands.md) lists every V1 name.
 * **`!discordbotframework` / `!framework` / `!botinfo`** are aliases of `/about`.
 * **Cron weekdays** follow standard cron now: `0` = Sunday (V1: `0` = Monday). Migrated tasks
   are converted automatically. Names (`mon-fri`) and macros (`@daily`) are supported.
@@ -46,8 +46,21 @@ The V1 folder is only read. Stop the V1 bot first so its databases are not in us
     `message_count`, `time_range` and `day_of_week` carry over.
 * **Cluster IPC** is a new, authenticated protocol. All clusters must run V2, and
   `SHARD_IPC_SECRET` must be at least 16 characters (the V1 default `change_me_please` is refused).
-* **Removed**: the live web dashboard (`live_monitor`), `GeminiService`, `GeminiServiceHelper`
-  and `ZExtensionAI`. Heavy packages (torch, opencv, …) are no longer installed by default -
+* **Live Monitor** was rebuilt as the **ZDBF Dashboard** (`[modules] dashboard`, see
+  [dashboard guide](dashboard.md)). It is a new website and a new protocol: upload the new files and
+  pair again. V1 dashboard files, tokens and users are not imported.
+* **Removed**: `GeminiService`, `GeminiServiceHelper` and `ZExtensionAI`. Heavy packages (torch, opencv, …) are no longer installed by default -
   `requirements-extensions.txt` lists common marketplace dependencies and `/marketplace fixdeps`
   installs what an extension is missing.
 * **License**: Apache 2.0 for the framework; the marketplace client keeps its own license.
+
+## After the migration
+
+1. Start the bot and run `/fw integrity`.
+2. Check `/hooks list` for automations that were imported disabled (tickets) and finish them.
+3. Run `/schedule list` and `/schedule preview` on a task or two to confirm the times.
+4. Check `/ext list` for V1 extensions that failed to load. `/marketplace fixdeps` installs missing
+   packages; the full error of anything else is in `logs/errors.log` and on the dashboard's Extensions page.
+5. Set alert channels again if you want them elsewhere: `/fw alerts`.
+
+Every change between versions: [CHANGELOG.md](../../CHANGELOG.md).

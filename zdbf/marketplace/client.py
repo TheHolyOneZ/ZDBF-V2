@@ -203,11 +203,52 @@ RISKY_CALLS = {"eval", "exec", "compile", "__import__", "system", "popen", "rmtr
 RISKY_MODULES = {"subprocess", "ctypes", "socket", "shutil", "pickle", "marshal"}
 
 
+IMPORT_ERRORS = {"ImportError", "ModuleNotFoundError", "Exception", "BaseException"}
+
+
+def _catches_import_error(node: ast.Try) -> bool:
+    for handler in node.handlers:
+        if handler.type is None:
+            return True
+        types = handler.type.elts if isinstance(handler.type, ast.Tuple) else [handler.type]
+        if any(getattr(t, "id", getattr(t, "attr", "")) in IMPORT_ERRORS for t in types):
+            return True
+    return False
+
+
+def _is_type_checking(node: ast.If) -> bool:
+    test = node.test
+    return getattr(test, "id", getattr(test, "attr", "")) == "TYPE_CHECKING"
+
+
+def _top_modules(node: ast.AST) -> set[str]:
+    if isinstance(node, ast.Import):
+        return {a.name.split(".")[0] for a in node.names}
+    if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+        return {node.module.split(".")[0]}
+    return set()
+
+
+def optional_imports(tree: ast.AST) -> set[str]:
+    optional: set[str] = set()
+    for node in ast.walk(tree):
+        guarded: list[ast.stmt] = []
+        if isinstance(node, (ast.Try, ast.TryStar)) and _catches_import_error(node):
+            guarded = node.body
+        elif isinstance(node, ast.If) and _is_type_checking(node):
+            guarded = node.body
+        for stmt in guarded:
+            for inner in ast.walk(stmt):
+                optional |= _top_modules(inner)
+    return optional
+
+
 def safety_scan(source: str) -> dict[str, Any]:
     try:
         tree = ast.parse(source)
     except SyntaxError as exc:
-        return {"ok": False, "error": f"syntax error on line {exc.lineno}: {exc.msg}", "imports": [], "flags": []}
+        return {"ok": False, "error": f"syntax error on line {exc.lineno}: {exc.msg}", "imports": [], "flags": [],
+                "optional_imports": []}
     imports: set[str] = set()
     flags: set[str] = set()
     has_setup = False
@@ -224,5 +265,6 @@ def safety_scan(source: str) -> dict[str, Any]:
         elif isinstance(node, ast.AsyncFunctionDef) and node.name == "setup":
             has_setup = True
     flags.update(f"imports `{m}`" for m in imports & RISKY_MODULES)
+    optional = optional_imports(tree)
     return {"ok": True, "imports": sorted(imports), "flags": sorted(flags), "has_setup": has_setup,
-            "lines": source.count("\n") + 1}
+            "optional_imports": sorted(optional & imports), "lines": source.count("\n") + 1}

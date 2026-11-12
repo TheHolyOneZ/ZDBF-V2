@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
 import logging
 import sys
 import time
+import traceback
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from discord.ext import commands
 
@@ -18,7 +20,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("zdbf.extensions")
 
-__all__ = ["BUILTIN_MODULES", "ExtensionManager", "ExtensionResult"]
+__all__ = ["BUILTIN_MODULES", "ExtensionManager", "ExtensionResult", "accept_old_setup"]
 
 BUILTIN_MODULES: dict[str, str] = {
     "core": "zdbf.cogs.core",
@@ -33,12 +35,73 @@ BUILTIN_MODULES: dict[str, str] = {
     "shards": "zdbf.cogs.shards",
     "cluster": "zdbf.cogs.cluster",
     "marketplace": "zdbf.marketplace.cog",
+    "dashboard": "zdbf.cogs.dashboard",
 }
 ALWAYS_LOADED = ("zdbf.cogs.compat",)
 
 
+def _trace(exc: BaseException) -> str:
+    return "".join(traceback.format_exception(exc))[-8000:]
+
+
 class ExtensionError(Exception):
     pass
+
+
+LEGACY_NOTE = "uses an old-style setup(); loaded in compatibility mode"
+
+
+def _awaited_setup(setup: Any, module: str) -> Any:
+    async def run(bot: Any) -> None:
+        added: list[Any] = []
+        original = bot.add_cog
+
+        def add_cog(cog: Any, /, **kwargs: Any) -> Any:
+            call = original(cog, **kwargs)
+            added.append(call)
+            return call
+
+        bot.add_cog = add_cog
+        try:
+            result = setup(bot)
+        finally:
+            del bot.add_cog
+        if inspect.isawaitable(result):
+            await result
+        for call in added:
+            task = next((t for t in asyncio.all_tasks() if t.get_coro() is call), None)
+            if task is not None:
+                await task
+            elif inspect.getcoroutinestate(call) == inspect.CORO_CREATED:
+                await call
+        manager = getattr(bot, "ext", None)
+        if manager is not None:
+            manager.legacy.add(module)
+        log.info("%s %s", module, LEGACY_NOTE)
+
+    return run
+
+
+class SetupShim:
+    def __init__(self, loader: Any) -> None:
+        self._loader = loader
+
+    def create_module(self, spec: Any) -> Any:
+        return self._loader.create_module(spec)
+
+    def exec_module(self, module: Any) -> None:
+        self._loader.exec_module(module)
+        setup = getattr(module, "setup", None)
+        if callable(setup) and not inspect.iscoroutinefunction(setup):
+            module.setup = _awaited_setup(setup, module.__name__)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._loader, name)
+
+
+def accept_old_setup(spec: Any, key: str) -> None:
+    if spec.loader is not None and not key.startswith("zdbf.") and not isinstance(spec.loader, SetupShim):
+        spec.loader = SetupShim(spec.loader)
 
 
 @dataclass(slots=True)
@@ -60,6 +123,8 @@ class ExtensionManager:
         self.package = self.directory.name
         self.load_times: dict[str, float] = {}
         self.failed: dict[str, str] = {}
+        self.tracebacks: dict[str, str] = {}
+        self.legacy: set[str] = set()
         self._mtimes: dict[str, float] = {}
         self._watcher: asyncio.Task[None] | None = None
 
@@ -144,19 +209,23 @@ class ExtensionManager:
             problems = self.bot.plugins.preflight(short, path)
             if problems:
                 self.failed[module] = "; ".join(problems)
+                self.tracebacks.pop(module, None)
                 await self.bot.alerts.send("plugins", f"`{short}` blocked: " + "; ".join(problems), "warning")
                 return ExtensionResult(short, module, False, "load", error="; ".join(problems))
         start = time.perf_counter()
+        self.legacy.discard(module)
         try:
             await self.bot.load_extension(module)
         except commands.ExtensionError as exc:
             cause = exc.__cause__ or exc
             self.failed[module] = f"{type(cause).__name__}: {cause}"
+            self.tracebacks[module] = _trace(cause)
             quiet = isinstance(exc, (commands.ExtensionNotFound, commands.NoEntryPointError))
             log.error("failed to load %s: %s", module, cause, exc_info=None if quiet else cause)
             return ExtensionResult(short, module, False, "load", error=self.failed[module])
         elapsed = (time.perf_counter() - start) * 1000
         self.failed.pop(module, None)
+        self.tracebacks.pop(module, None)
         self.load_times[short] = elapsed
         self._snapshot_mtime(module)
         if not self.is_builtin(module):
@@ -164,7 +233,7 @@ class ExtensionManager:
         await self.bot.hooks.emit("extension_loaded", extension_name=module)
         self.bot.mark_tree_dirty()
         log.info("loaded %s (%.1f ms)", module, elapsed)
-        return ExtensionResult(short, module, True, "load", elapsed)
+        return ExtensionResult(short, module, True, "load", elapsed, note=LEGACY_NOTE if module in self.legacy else None)
 
     async def unload(self, name: str) -> ExtensionResult:
         module = self.module_for(name)
@@ -177,6 +246,7 @@ class ExtensionManager:
             return ExtensionResult(short, module, False, "unload", error="not loaded")
         self.bot.hooks.unregister_module(module)
         self.bot.plugins.unregister_plugin(short)
+        self.legacy.discard(module)
         self._mtimes.pop(module, None)
         await self.bot.hooks.emit("extension_unloaded", extension_name=module)
         self.bot.mark_tree_dirty()
@@ -198,9 +268,11 @@ class ExtensionManager:
         except commands.ExtensionError as exc:
             cause = exc.__cause__ or exc
             log.error("failed to reload %s (previous version kept): %s", module, cause, exc_info=cause)
+            self.tracebacks[module] = _trace(cause)
             return ExtensionResult(short, module, False, "reload", error=f"{type(cause).__name__}: {cause}",
                                    note="previous version is still running")
         elapsed = (time.perf_counter() - start) * 1000
+        self.tracebacks.pop(module, None)
         self.load_times[short] = elapsed
         self._snapshot_mtime(module)
         if not self.is_builtin(module):
@@ -209,7 +281,7 @@ class ExtensionManager:
         await self.bot.hooks.emit("extension_loaded", extension_name=module)
         self.bot.mark_tree_dirty()
         log.info("reloaded %s (%.1f ms)", module, elapsed)
-        return ExtensionResult(short, module, True, "reload", elapsed)
+        return ExtensionResult(short, module, True, "reload", elapsed, note=LEGACY_NOTE if module in self.legacy else None)
 
     async def load_builtin(self) -> list[ExtensionResult]:
         results = []

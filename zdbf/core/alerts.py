@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING, Literal
+from collections import deque
+from typing import TYPE_CHECKING, Any, Literal
 
 import discord
 
@@ -25,6 +26,7 @@ class AlertManager:
         self.channels: dict[str, int] = {}
         self._last_sent: dict[tuple[str, str], float] = {}
         self.rate_limit_seconds = 30
+        self.recent: deque[dict[str, Any]] = deque(maxlen=100)
 
     async def load(self) -> None:
         self.channels = {k: int(v) for k, v in (await self.bot.db.kv_get(self.KV_KEY, {})).items()}
@@ -42,6 +44,7 @@ class AlertManager:
     async def send(self, system: str, message: str, level: Level = "warning", *, title: str | None = None) -> bool:
         log_level = {"info": logging.INFO, "success": logging.INFO, "warning": logging.WARNING}.get(level, logging.ERROR)
         log.log(log_level, "[%s] %s", system, message)
+        self.recent.append({"system": system, "message": message, "level": level, "title": title, "at": time.time()})
 
         key = (system, message)
         now = time.monotonic()

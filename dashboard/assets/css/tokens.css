@@ -1,0 +1,183 @@
+@font-face {
+  font-family: "ZDBF Grotesk";
+  font-style: normal;
+  font-weight: 300 800;
+  font-stretch: 100% 125%;
+  font-display: swap;
+  src: url("../fonts/zdbf-grotesk-latin.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("../fonts/jetbrains-mono-latin.woff2") format("woff2");
+}
+
+:root {
+  --font: "ZDBF Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 14px;
+  --r-float: 22px;
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  --ease-in: cubic-bezier(.5, 0, .9, .4);
+  --ease-glass: cubic-bezier(.3, 1.3, .5, 1);
+  --fast: 180ms;
+  --slow: 320ms;
+  --gap: 12px;
+  --rail: 244px;
+  --rail-slim: 64px;
+  --topbar: 52px;
+
+  color-scheme: dark;
+  --bg: #04050a;
+  --bg-2: #090b14;
+  --surface: #0c0e1a;
+  --surface-2: #121525;
+  --surface-3: #1a1e33;
+  --line: rgb(255 255 255 / .075);
+  --line-2: rgb(255 255 255 / .14);
+  --text: #f2f3f8;
+  --text-2: #a7adc2;
+  --text-3: #8188a4;
+
+  --accent: #8d7dff;
+  --accent-2: #b9b0ff;
+  --accent-ink: #0a0716;
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3l2.3 2.4 4.5-5.2' fill='none' stroke='%230a0716' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --accent-rgb: 141 125 255;
+  --accent-soft: rgb(141 125 255 / .13);
+  --accent-line: rgb(141 125 255 / .4);
+  --ion: #5ce1ff;
+  --ion-rgb: 92 225 255;
+
+  --ok: #43e0a0;
+  --ok-soft: rgb(67 224 160 / .12);
+  --warn: #f6bd4b;
+  --warn-soft: rgb(246 189 75 / .12);
+  --bad: #ff6b7c;
+  --bad-soft: rgb(255 107 124 / .12);
+  --info: #5ccbff;
+  --info-soft: rgb(92 203 255 / .12);
+  --discord: #5865f2;
+
+  --series: #8d7dff;
+  --series-wash: rgb(141 125 255 / .1);
+  --series-mute: #3a4058;
+  --grid: rgb(255 255 255 / .07);
+  --axis: rgb(255 255 255 / .16);
+
+  --shadow-1: 0 1px 0 rgb(255 255 255 / .07) inset, 0 28px 56px -32px rgb(0 0 0 / .8);
+  --shadow-2: 0 1px 0 rgb(255 255 255 / .09) inset, 0 40px 80px -28px rgb(0 0 0 / .85), 0 10px 24px -14px rgb(0 0 0 / .6);
+  --glow: radial-gradient(900px 520px at 22% 108%, rgb(141 125 255 / .16), transparent 70%), radial-gradient(760px 480px at 96% 8%, rgb(92 225 255 / .08), transparent 70%);
+  --scrim: rgb(3 4 9 / .62);
+
+  --glass: rgb(11 13 24 / .52);
+  --glass-dense: rgb(9 11 20 / .74);
+  --glass-float: rgb(12 14 26 / .72);
+  --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / .065), rgb(255 255 255 / .018) 38%, rgb(255 255 255 / .01));
+  --glass-edge: linear-gradient(135deg, rgb(255 255 255 / .26), rgb(255 255 255 / .07) 30%, rgb(255 255 255 / .025) 62%, rgb(141 125 255 / .22));
+  --glass-blur: blur(28px) saturate(170%);
+  --refract-blur: blur(16px) saturate(175%);
+  --specular: rgb(255 255 255 / .075);
+  --control: rgb(255 255 255 / .05);
+  --control-hover: rgb(255 255 255 / .09);
+  --porcelain: #f2f3f8;
+  --porcelain-ink: #090b14;
+
+  --syn-keyword: #b8a6ff;
+  --syn-string: #7fdcae;
+  --syn-number: #f6bd6b;
+  --syn-comment: #6c7390;
+  --syn-func: #74c7ff;
+  --syn-def: #e8eaf4;
+  --syn-type: #ff9fb6;
+  --syn-prop: #9ed4ff;
+  --syn-op: #8d93ab;
+  --syn-meta: #f0a8ff;
+  --syn-line: rgb(255 255 255 / .025);
+  --syn-select: rgb(141 125 255 / .28);
+  --syn-match: rgb(141 125 255 / .14);
+  --diff-add: rgb(67 224 160 / .26);
+  --diff-add-line: rgb(67 224 160 / .09);
+  --diff-del: rgb(255 107 124 / .3);
+  --diff-del-line: rgb(255 107 124 / .1);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f5f9;
+  --bg-2: #eceef5;
+  --surface: #ffffff;
+  --surface-2: #f5f6fa;
+  --surface-3: #e9ebf3;
+  --line: rgb(20 24 60 / .1);
+  --line-2: rgb(20 24 60 / .2);
+  --text: #12131b;
+  --text-2: #484d62;
+  --text-3: #5a607a;
+
+  --accent: #5a45ee;
+  --accent-2: #4733d1;
+  --accent-ink: #ffffff;
+  --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3l2.3 2.4 4.5-5.2' fill='none' stroke='%23ffffff' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --accent-rgb: 90 69 238;
+  --accent-soft: rgb(90 69 238 / .09);
+  --accent-line: rgb(90 69 238 / .36);
+  --ion: #0a87ad;
+  --ion-rgb: 10 135 173;
+
+  --ok: #077049;
+  --ok-soft: rgb(14 159 110 / .1);
+  --warn: #8a560b;
+  --warn-soft: rgb(183 121 31 / .12);
+  --bad: #bd2038;
+  --bad-soft: rgb(212 54 74 / .08);
+  --info: #0a6494;
+  --info-soft: rgb(10 123 181 / .09);
+
+  --series: #5a45ee;
+  --series-wash: rgb(90 69 238 / .1);
+  --series-mute: #c9c9d6;
+  --grid: rgb(20 24 60 / .08);
+  --axis: rgb(20 24 60 / .22);
+
+  --shadow-1: 0 1px 0 rgb(255 255 255 / .9) inset, 0 24px 48px -28px rgb(52 60 110 / .34), 0 2px 6px -2px rgb(52 60 110 / .1);
+  --shadow-2: 0 1px 0 rgb(255 255 255 / .9) inset, 0 36px 70px -30px rgb(52 60 110 / .42), 0 6px 16px -8px rgb(52 60 110 / .16);
+  --glow: radial-gradient(900px 520px at 22% 108%, rgb(90 69 238 / .14), transparent 70%), radial-gradient(760px 480px at 96% 8%, rgb(10 135 173 / .08), transparent 70%);
+  --scrim: rgb(226 229 240 / .6);
+
+  --glass: rgb(255 255 255 / .6);
+  --glass-dense: rgb(255 255 255 / .8);
+  --glass-float: rgb(255 255 255 / .84);
+  --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / .75), rgb(255 255 255 / .2) 40%, rgb(255 255 255 / .05));
+  --glass-edge: linear-gradient(135deg, rgb(255 255 255 / 1), rgb(255 255 255 / .7) 30%, rgb(190 196 220 / .35) 62%, rgb(90 69 238 / .28));
+  --specular: rgb(255 255 255 / .7);
+  --control: rgb(20 24 60 / .045);
+  --control-hover: rgb(20 24 60 / .085);
+  --porcelain: #12131b;
+  --porcelain-ink: #ffffff;
+
+  --syn-keyword: #5a2fd6;
+  --syn-string: #0b7a50;
+  --syn-number: #9a5b00;
+  --syn-comment: #80859a;
+  --syn-func: #0a62a3;
+  --syn-def: #15161c;
+  --syn-type: #b0234a;
+  --syn-prop: #11609a;
+  --syn-op: #5c6175;
+  --syn-meta: #9b2bb0;
+  --syn-line: rgb(20 20 40 / .035);
+  --syn-select: rgb(90 69 238 / .2);
+  --syn-match: rgb(90 69 238 / .1);
+  --diff-add: rgb(14 159 110 / .22);
+  --diff-add-line: rgb(14 159 110 / .08);
+  --diff-del: rgb(212 54 74 / .2);
+  --diff-del-line: rgb(212 54 74 / .07);
+}

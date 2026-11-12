@@ -136,4 +136,22 @@ CORE_MIGRATIONS: list[tuple[int, str, str]] = [
         CREATE INDEX IF NOT EXISTS idx_automation_runs_hook ON automation_runs(hook_id, id);
         """,
     ),
+    (
+        4,
+        "dashboard_audit",
+        """
+        CREATE TABLE IF NOT EXISTS dashboard_audit (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            at         TEXT    NOT NULL,
+            command_id TEXT,
+            action     TEXT    NOT NULL,
+            capability TEXT    NOT NULL,
+            user_id    TEXT,
+            user_name  TEXT,
+            outcome    TEXT    NOT NULL,
+            detail     TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_dashboard_audit_at ON dashboard_audit(id);
+        """,
+    ),
 ]

@@ -17,7 +17,7 @@ credited in the fix.
 | Version | Supported |
 |---|---|
 | 2.x | ✅ |
-| 1.x | ❌ (please migrate - see `docs/MIGRATING.md`) |
+| 1.x | ❌ (please migrate - see `docs/guide/migrating-from-v1.md`) |
 
 ## Built-in safeguards (V2)
 

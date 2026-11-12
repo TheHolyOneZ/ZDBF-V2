@@ -77,6 +77,7 @@ backup = true
 shards = true
 cluster = false                # multi-process IPC, see [cluster]
 marketplace = true
+dashboard = false              # web control panel, see [dashboard] and docs/guide/dashboard.md
 
 [diagnostics]
 loop_lag_threshold_ms = 500
@@ -107,3 +108,41 @@ name = "cluster-0"
 api_url = "https://zsync.eu/extension/api/extensions.php?action=list"
 download_url = "https://zsync.eu/extension/download.php"
 cache_minutes = 10
+auto_install_packages = true    # offer to pip-install an extension's missing packages and load it
+
+# Web control panel. Enable the module above, run /dashboard export, upload the folder,
+# then /dashboard pair. Everything in this section is enforced by the bot and can
+# never be changed from the website.
+[dashboard]
+# What the website may do. Remove a line to switch that area off.
+capabilities = [
+    "view",              # status, statistics, lists
+    "logs",              # live log tail
+    "chat.read",         # read channels the bot can see
+    "chat.send",         # send, edit and delete the bot's own messages, react
+    "commands.run",      # run commands with the rights of an ordinary member
+    "extensions",        # load, unload, reload
+    "files.read",        # read files inside file_roots
+    "automations",
+    "scheduler",
+    "settings",
+    "backups",           # create, list, compare (restoring is "backups.restore")
+    "presence",
+    # Off unless you add them:
+    # "chat.moderate",   # delete other members' messages, pin
+    # "database",        # read-only database browser
+    # "files.write",     # create, change, rename, delete files
+    # "config",          # change config.toml and runtime overrides
+    # "marketplace",     # install extensions and Python packages
+    # "commands.owner",  # run commands with the rights of the bot owner
+    # "backups.restore",
+    # "guilds.leave",
+    # "system",          # shut the bot down
+]
+# These wait for the bot owner to press Approve in a Discord DM.
+approval = ["files.write", "config", "marketplace", "commands.owner", "backups.restore", "guilds.leave", "system"]
+approval_timeout = 300         # seconds until an unanswered approval request is denied
+file_roots = ["extensions"]    # folders the file manager may open, relative to the bot directory
+max_file_kb = 1024             # largest file the dashboard may read or write
+idle_interval = 45             # seconds between check-ins while nobody has the dashboard open
+locked = false                 # true = view only (same as /dashboard lock)

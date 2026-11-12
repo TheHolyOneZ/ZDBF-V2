@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 ALERT_SYSTEMS = (
     "default", "errors", "diagnostics", "eventhooks", "plugins", "extensions",
-    "shards", "cluster", "backup", "scheduler", "automations", "marketplace", "database",
+    "shards", "cluster", "backup", "scheduler", "automations", "marketplace", "database", "dashboard",
 )
 SECRET_HINTS = ("token", "secret", "password", "api_key", "apikey")
 
@@ -335,7 +335,7 @@ class Admin(commands.Cog, name="Framework"):
     async def fw_alerts(self, ctx: commands.Context[ZDBFBot],
                         system: Literal["default", "errors", "diagnostics", "eventhooks", "plugins", "extensions",
                                         "shards", "cluster", "backup", "scheduler", "automations",
-                                        "marketplace", "database"] | None = None,
+                                        "marketplace", "database", "dashboard"] | None = None,
                         channel: discord.TextChannel | None = None) -> None:
         if system is None:
             lines = []

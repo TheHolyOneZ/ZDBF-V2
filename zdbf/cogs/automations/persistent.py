@@ -2,14 +2,13 @@
 # Copyright 2025-2026 TheHolyOneZ
 from __future__ import annotations
 
-import asyncio
-import contextlib
 from typing import TYPE_CHECKING, Any
 
 import discord
 
 from ...ui import cards
 from .engine import member_values, render
+from .transcripts import close_ticket
 
 if TYPE_CHECKING:
     from .cog import Automations
@@ -140,13 +139,11 @@ class TicketCloseButton(discord.ui.DynamicItem[discord.ui.Button[Any]], template
         if not allowed:
             await _deny(interaction, "Not allowed", "Only the ticket owner or support team can close it.")
             return
-        await interaction.response.send_message(view=cards.warning("Closing", "This channel is deleted in 5 seconds."))
-        if owner:
-            await cog.runtime.state_delete(auto, int(owner), "open_ticket")
-        await cog.runtime.state_delete(auto, channel.id, "ticket_owner")
-        await asyncio.sleep(5)
-        with contextlib.suppress(discord.HTTPException):
-            await channel.delete(reason=f"Ticket closed by {member}")
+        saving = auto.config.get("transcripts", True)
+        await interaction.response.send_message(view=cards.warning(
+            "Closing", "A transcript is saved and this channel is deleted in a few seconds." if saving
+            else "This channel is deleted in 5 seconds."))
+        await close_ticket(cog, auto, channel, str(member))
 
 
 PERSISTENT_ITEMS = (RoleButton, TicketOpenButton, TicketCloseButton)

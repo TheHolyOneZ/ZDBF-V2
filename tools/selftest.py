@@ -266,7 +266,26 @@ async def deep_checks(bot: ZDBFBot, guild: discord.Guild, channel: discord.TextC
         await channel.send(view=cards.static(box), file=discord.File(io.BytesIO(b'{"ok": true}'), "selftest.json"))
         return None
 
-    for name, coro in (("backup round-trip", backup_roundtrip()), ("automation panels", panels()),
+    async def dashboard_actions() -> str:
+        cog = bot.get_cog("Dashboard")
+        if cog is None:
+            return "dashboard module off, skipped"
+        reads = [("system.ping", {}), ("extensions.list", {}), ("servers.list", {}), ("servers.detail", {"guild_id": guild.id}),
+                 ("automations.catalogue", {}), ("automations.list", {"guild_id": guild.id}), ("scheduler.list", {}),
+                 ("system.diagnostics", {}), ("system.shards", {}), ("system.hooks", {}), ("system.plugins", {}),
+                 ("system.alerts", {}), ("presence.get", {}), ("tickets.list", {"guild_id": guild.id}),
+                 ("commands.list", {}), ("chat.tree", {})]
+        ran = 0
+        for type_, args in reads:
+            result = await cog.dispatcher.handle({"id": f"selftest-{time.time_ns()}", "type": type_, "args": args,
+                                                  "user": {"id": "0", "name": "selftest"}, "issued_at": time.time()})
+            if result is None or result["status"] == "denied":
+                continue
+            assert result["status"] == "done", f"{type_}: {result.get('error')}"
+            ran += 1
+        return f"{ran} read actions"
+
+    for name, coro in (("dashboard actions", dashboard_actions()), ("backup round-trip", backup_roundtrip()), ("automation panels", panels()),
                        ("custom automation", custom_automation()), ("slash budget", slash_budget()),
                        ("backup paging", backup_paging()),
                        ("scheduler", scheduler()), ("file export", export())):

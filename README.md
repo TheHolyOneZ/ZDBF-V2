@@ -1,42 +1,239 @@
 <div align="center">
 
-<img src="assets/banner.png" alt="Zoryx Discord Bot Framework" width="720">
+<img src="assets/banner.png" alt="ZDBF V2, the Zoryx Discord Bot Framework: a modular Python Discord bot with backups, automations and a web dashboard" width="720">
 
-# Zoryx Discord Bot Framework V2
+# ZDBF V2: Zoryx Discord Bot Framework
 
-A modular Discord bot you can run as it is or build on. Every message is a Components V2 layout.
+**A free, open-source Discord bot written in Python that you can run as it is or build on.**<br>
+Server backups, no-code automations, a cron scheduler, support tickets, diagnostics, an extension
+marketplace and a web dashboard, with every message drawn as a Components V2 layout.
 
 [![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-3776AB)](https://www.python.org/downloads/)
 [![discord.py](https://img.shields.io/badge/discord.py-2.7-5865F2)](https://github.com/Rapptz/discord.py)
 [![License](https://img.shields.io/badge/license-Apache--2.0-2F855A)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.0.0-555555)](CHANGELOG.md)
+
+[Quick start](#quick-start) ·
+[Features](#features) ·
+[Commands](#commands) ·
+[Dashboard](#web-dashboard) ·
+[Documentation](docs/README.md) ·
+[Build an extension](docs/dev/extensions.md)
 
 </div>
 
 ---
 
-## What it is
+## What is ZDBF?
 
-ZDBF V2 is a complete rewrite of the Zoryx Discord Bot Framework. You get a ready bot with
-server backups, no-code automations, a cron scheduler, diagnostics and an extension marketplace.
-Every command works as a slash command and with a prefix. Developers can add their own
-features as extensions, which reload when the file is saved.
+ZDBF (Zoryx Discord Bot Framework) is a self-hosted Discord bot for server owners and a framework
+for Python developers. Download it, add your bot token and start it: you get a working bot with
+backup and restore, welcome messages, role panels, tickets, levels, a word filter, scheduled
+messages and more, all set up from Discord with buttons and menus. Nothing has to be programmed.
 
-| Area | In short |
+When you want something it does not do, write an extension: a Python file in `extensions/` that
+reloads the moment you save it. Extensions get the same building blocks as the built-in features:
+cards and menus, storage, event hooks, the scheduler and their own page in the web dashboard.
+
+ZDBF V2 is a complete rewrite of the [original framework](https://github.com/TheHolyOneZ/discord-bot-framework)
+and runs on Python 3.12, 3.13 and 3.14 with discord.py 2.7.
+
+## Why ZDBF
+
+- **Ready on first start.** One required value (`DISCORD_TOKEN`), a commented default config
+  written for you, owners detected from your Discord application.
+- **Set up from Discord.** Automations, backups, schedules and settings use buttons, menus and
+  forms. Every command works as `/slash` and with a prefix (`!`).
+- **Hard to break.** The database recovers itself from a damaged file. A broken extension edit is
+  rolled back and the old version keeps running. A failing automation or hook is switched off
+  before it can flood your server. Unexpected errors show the user a short code and send you the
+  full traceback.
+- **Safe to restore.** Backups carry a checksum, and every restore can be previewed as a dry run
+  before anything changes.
+- **A web dashboard on ordinary hosting.** Upload PHP files to any web host. The bot connects out,
+  so your bot machine needs no open port. Dangerous actions are off by default and wait for your
+  approval in a Discord DM.
+- **Easy to extend.** Hot reload, dependency checks, a Components V2 UI kit, storage and migrations,
+  event hooks with circuit breakers, and dashboard panels written in plain Python.
+- **Clean to look at.** Restrained cards with status dots, no emoji clutter, pagination on
+  anything that could overflow Discord's limits.
+- **Free.** Apache-2.0 licensed. Run it, change it, ship it.
+
+## Features
+
+| Area | What you get |
 |---|---|
-| [Commands and help](#commands-and-help) | Hybrid `/slash` and `!prefix` commands in 15 groups, V1 names kept as aliases, help browser. |
-| [Server settings](#server-settings) | Per-server prefix, @mention prefix, role requirements per command. |
-| [Automations](#automations) | 11 templates and Custom automations with triggers, up to 15 actions, conditions and cooldowns. |
-| [Backup and restore](#backup-and-restore) | Full server snapshots, diff, dry-run preview, selective restore, scheduled backups. |
-| [Scheduler](#scheduler) | Cron tasks with time zones that post messages, emit events or write logs. |
-| [Diagnostics and alerts](#diagnostics-and-alerts) | Health checks, loop lag, error tracking, integrity check, alerts routed per system. |
-| [Extensions](#extensions-plugins-and-event-hooks) | Hot reload with rollback, dependency and conflict checks, event hooks with circuit breakers. |
-| [ZSync Marketplace](#zsync-marketplace) | Browse, scan, install and update community extensions. |
-| [Database](#database-and-storage) | One SQLite file, atomic writes, automatic recovery and rolling backups. |
-| [Sharding and clusters](#sharding-and-clusters) | Shard monitor and multi-process clusters over authenticated IPC. |
+| [Commands and help](#commands-and-help) | Grouped slash commands that also work with a prefix, an interactive `/help` with search and per-command details, V1 names kept as aliases. |
+| [Server settings](#server-settings) | Prefix per server, @mention prefix, role requirements per command or group. |
+| [Automations](#automations) | 11 ready templates (welcome, role panels, tickets, XP, word filter...) and custom automations with triggers, up to 15 actions and conditions. |
+| [Backup and restore](#backup-and-restore) | Full server snapshots, compare, dry-run preview, selective restore, scheduled backups. |
+| [Scheduler](#scheduler) | Cron tasks in your time zone that post messages, fire events or write logs. |
+| [Diagnostics and alerts](#diagnostics-and-alerts) | Health checks, event-loop lag, error tracking, an integrity check and alerts sent to a channel per system. |
+| [Extensions](#extensions) | Drop-in Python files with hot reload, rollback, dependency and conflict checks. |
+| [ZSync Marketplace](#zsync-marketplace) | Browse, safety-scan, install and update community extensions from Discord. |
+| [Database](#database-and-storage) | One SQLite file with atomic writes, automatic recovery and rolling backups. |
+| [Sharding and clusters](#sharding-and-clusters) | Shard monitor and multi-process clusters over signed IPC. |
+| [Web dashboard](#web-dashboard) | Control the bot from a browser: chat as the bot, run commands, edit files, manage servers and more. |
+
+### Commands and help
+
+- Every command is a hybrid: it works as `/slash` and with the prefix (default `!`, case-insensitive).
+- Commands are grouped (`/backup create`, `/hooks list`), so the framework uses only 15 of the 100
+  top-level slash commands Discord allows (17 with the optional dashboard and cluster modules).
+  If extensions push the total over 100, the extra commands keep working with the prefix.
+- `/help` is an interactive guide: one card per category, a **Details** page for every command
+  (usage, options, defaults, who can use it, aliases, cooldown) and a **Search** button. It only
+  lists what the member can run. `/help <command>` jumps straight to one, and a typo suggests the
+  closest match.
+- `/about`, `/ping` (gateway, API and database latency) and `/stats` (uptime, members, command and
+  error counts, memory, shards, most used commands).
+- Mentioning the bot shows its prefix and where to start.
+- A default cooldown for commands without one (bot owners are exempt).
+- A rotating status with placeholders such as `{guilds}` and `{users}`.
+
+### Server settings
+
+- `/settings prefix` sets a prefix for the server, `/settings mentionprefix` allows or blocks
+  `@Bot <command>`.
+- `/settings permissions` requires roles for a single command or a whole group. Server owners and
+  administrators are never restricted.
+- `/settings view` shows everything that is set.
+
+### Automations
+
+Built with a visual builder (`/hooks create`), managed with `/hooks list`, `info`, `toggle` and `history`.
+
+| Template | What it does |
+|---|---|
+| Welcome | Greets new members with a card or text, gives an auto role, optional DM. |
+| Goodbye | Posts a farewell when a member leaves. |
+| Button roles | A panel of buttons that toggle roles, optionally one role at a time. Survives restarts. |
+| Reaction roles | Emoji-to-role mapping on any message, optional removal on un-react. |
+| Word filter | Deletes, warns, times out or kicks on banned words, with ignored roles and a log channel. |
+| XP and levels | XP per message, level-up messages, reward roles, `/hooks rank` and `/hooks leaderboard`. |
+| Recurring announcement | Posts a message every N hours. |
+| Support tickets | An "Open ticket" button that creates a private channel, with transcripts saved on close. |
+| Voice activity log | Logs voice joins, leaves, moves and mutes. |
+| Join-to-create voice | Joining a hub channel creates a personal voice channel. |
+| Webhook bridge | Forwards messages and joins to an external webhook (Discord, Zapier, Make). |
+
+**Custom automations** combine one trigger with up to 15 actions and any number of conditions:
+
+- **Triggers:** member joins or leaves, a message (any, contains, exact, starts with, regex), a
+  reaction, joining a voice channel, or a schedule.
+- **Actions:** send a message or card, DM, add or remove a role, time out, call a webhook, create a
+  role, wait, or run another automation.
+- **Conditions** (AND or OR): roles, role position, channels, time range, day of week, account
+  age, member age, chance, not a bot, message content, message count and custom variables.
+- **Placeholders** such as `{user}`, `{guild_name}`, `{member_count}`, `{date}`, `{random:1-10}`
+  and `{math:...}`.
+- Cooldowns per user or per server, a run history, and an automatic switch-off with an alert after
+  10 failures in a row.
+
+Guide: [docs/guide/automations.md](docs/guide/automations.md).
+
+### Backup and restore
+
+For server administrators.
+
+- `/backup create` captures roles, categories, channels (text, voice, forum with tags, permission
+  overwrites, slowmode), emojis, stickers, server settings, icon and banner, member roles and the
+  bot's own settings for the server.
+- Backups are compressed and checksummed (`/backup verify`).
+- `/backup restore` lets you pick what to restore, preview every change as a dry run, then watch
+  progress live and get a report.
+- `/backup diff` compares a backup with another one or with the server as it is now.
+- Pin backups to protect them, add notes, schedule automatic backups and see who did what with
+  `/backup audit`.
+
+Guide: [docs/guide/backups.md](docs/guide/backups.md).
+
+### Scheduler
+
+- `/schedule create` takes a standard cron expression (`0 9 * * mon-fri`), names, or a macro such
+  as `@daily`, in any time zone (`Europe/Berlin`, `America/New_York`...).
+- A task posts a message or card, fires an event for extensions, or writes a log line. It can stop
+  after a set number of runs.
+- `/schedule preview` explains an expression in plain words and lists its next runs.
+
+Guide: [docs/guide/scheduler.md](docs/guide/scheduler.md).
+
+### Diagnostics and alerts
+
+For the bot owner.
+
+- `/diag overview`: health (healthy, degraded or critical), event-loop lag, error rate, latency and
+  memory, checked every 5 minutes. `/diag history` shows trends, `/diag errors` recent failures.
+- `/fw integrity` checks configuration, the database, folders, extensions, intents, the slash
+  command budget, latency and disk space in one go.
+- `/fw alerts` sends alerts of each system (errors, backups, extensions, shards, marketplace...)
+  to the channel you choose.
+
+Guide: [docs/guide/operations.md](docs/guide/operations.md).
+
+### Extensions
+
+- Python files in `extensions/` load on start and reload when you save them. A broken edit is
+  rolled back and the working version keeps running.
+- `/ext list`, `load`, `unload`, `reload` and `info` manage them without a restart.
+- Extensions declare versions, dependencies and conflicts, which are checked before they load.
+  `/plugins` shows the dependency tree and any problems.
+- Extensions written for V1 still run.
+
+Write your own: [docs/dev/extensions.md](docs/dev/extensions.md).
+
+### ZSync Marketplace
+
+- `/marketplace` browses community extensions from the [ZSync Marketplace](https://zsync.eu/extension/).
+- Before anything installs, the bot shows a safety scan: imports, risky calls such as `subprocess`
+  or `socket`, the entry point, and the Python packages the extension still needs.
+- **Install and load** installs those packages and loads the extension in one step (bot owner only).
+- `/marketplace updates` finds newer versions, `/marketplace uninstall` removes one.
+
+Guide: [docs/guide/marketplace.md](docs/guide/marketplace.md).
+
+### Database and storage
+
+- One SQLite file (`data/zdbf.db`) in WAL mode with atomic writes.
+- Checked on every start: a damaged file is moved aside and the newest healthy backup is restored
+  automatically.
+- Rolling backups (7 kept by default) and one before every migration.
+- Hourly maintenance: expired caches, old logs, database checkpoint and optimise.
+
+### Sharding and clusters
+
+- Automatic sharding, or manual with `SHARD_COUNT` and `SHARD_IDS`.
+- `/shard monitor`, `health` and `details` show latency, uptime, reconnects and event throughput
+  per shard, with alerts on failure and recovery.
+- Optional clusters: several processes or machines talk over IPC where every frame is signed
+  (HMAC-SHA256) and checked for age and replays.
+
+### Web dashboard
+
+<p>
+The <strong>ZDBF Dashboard</strong> is a web control panel you upload to any PHP 8.1+ host.
+It is off by default; turn it on with <code>[modules] dashboard = true</code>.
+</p>
+
+- **Install in minutes.** `/dashboard export` sends you the files and a setup key, `setup.php`
+  installs them (SQLite or MySQL/MariaDB), `/dashboard pair` connects the bot.
+- **No open port.** The bot and the website can be on different machines. The bot only makes
+  outgoing HTTPS requests, signed with a secret that is derived on both sides and never sent.
+- **Control it like you are the bot.** Chat in any channel as the bot, run commands with forms,
+  edit extension files in a code editor, manage servers, backups, automations, schedules and
+  tickets, watch live logs and charts, browse the database, install from the marketplace.
+- **The bot keeps the last word.** Only the capabilities you enable work. Dangerous ones (writing
+  files, changing config, restoring backups, shutting down...) are off by default and wait for
+  your approval in a Discord DM. `/dashboard lock` makes it view-only at once.
+- **Built for teams.** Users and roles, two-factor login, optional Discord login, sessions and
+  audit logs on both sides.
+- Dark and light theme, keyboard shortcuts, a command palette and a phone layout.
+
+Guide: [docs/guide/dashboard.md](docs/guide/dashboard.md).
 
 ## Quick start
 
-You need Python 3.12, 3.13 or 3.14 and a bot application from the
+You need **Python 3.12, 3.13 or 3.14** and a bot application from the
 [Discord Developer Portal](https://discord.com/developers/applications).
 
 **1. Download and install**
@@ -57,15 +254,15 @@ cp .env.example .env             # Windows: copy .env.example .env
 
 Open `.env` and set `DISCORD_TOKEN`. It is the only required value.
 
-**3. Enable the privileged intents**
+**3. Turn on the privileged intents**
 
-In the Developer Portal, open your application, then **Bot**, and turn on **Server Members Intent**
+In the Developer Portal open your application, then **Bot**, and enable **Server Members Intent**
 and **Message Content Intent**. Backups and automations need the first, prefix commands need the
-second. If you leave one off, remove it from `[bot] privileged_intents` in `config.toml`.
+second.
 
 **4. Invite the bot**
 
-Under **OAuth2**, generate an invite link with the `bot` and `applications.commands` scopes and add
+Under **OAuth2**, create an invite link with the `bot` and `applications.commands` scopes and add
 the bot to your server.
 
 **5. Start it**
@@ -74,239 +271,45 @@ the bot to your server.
 python -m zdbf
 ```
 
-On first start the bot writes a default `config.toml` next to `.env`. Type `/help` in your server,
-or mention the bot to see its prefix. The application owner, or every member of the owning team,
-is recognised as bot owner automatically.
+The first start writes a default `config.toml`. Type `/help` in your server. You (the application
+owner, or every member of the owning team) are recognised as bot owner automatically.
 
-You do not need the client ID or the client secret. The client ID is read from Discord at login,
-and the secret is only used for website logins, which the bot does not do.
-
-## Features
-
-### Commands and help
-
-- Every command is a hybrid command: it works as `/slash` and with the prefix (default `!`).
-  Prefix commands are case-insensitive.
-- Commands are grouped (`/backup create`), so the framework uses 15 of the 100 top-level slash
-  commands Discord allows. V1 names such as `!backupcreate` still work with the prefix.
-- If extensions push the total past 100, the extra commands stay available with the prefix instead
-  of failing. `/diag commands` shows which ones were moved, and slots are refilled when an
-  extension is unloaded.
-- `/help` is an interactive guide: the bot's banner, avatar and description, then one card per
-  category, each command with a **Details** page (slash and prefix usage, every option with its type,
-  default and choices, who can use it, aliases, V1 names and cooldown) and a **Search** button that
-  also finds old V1 names. It only lists commands the user can run. `/help <command>` opens a
-  command directly, and an unknown name shows the closest matches.
-- Commands without their own cooldown get a default one (`[cooldowns] default_rate` per
-  `default_per` seconds, per user). Bot owners are exempt.
-- Mentioning the bot shows a short card with the prefix and where to start.
-- `/about` shows framework info and credits, `/ping` gateway, API and database latency, `/stats`
-  uptime, members, command and error counts, memory and per-shard figures. `/stats commands` lists
-  the most used commands per server or globally.
-- Slash commands sync on start only when they changed, and again 10 seconds after an extension
-  is loaded or unloaded. `/fw sync` syncs by hand: `changed` (default), `force`, `server` (an instant
-  copy to the current server for testing) and `clear-server` (removes that copy again). Owner-only groups can be limited to development servers
-  (`[bot] dev_guild_ids`) and are hidden from members without Administrator.
-- Unexpected errors show the user a short reference code. The full traceback goes to the log and
-  to the errors alert channel under the same code.
-- Rotating bot status with placeholders (`{guilds}`, `{users}`, `{shards}`, `{commands}`,
-  `{prefix}`, `{version}`), and an option to delete the invoking prefix message.
-
-### Server settings
-
-- `/settings prefix` sets a prefix per server, `/settings mentionprefix` allows or blocks
-  `@Bot <command>`.
-- `/settings permissions` requires roles for a command or a whole group. The server owner and
-  administrators are never restricted.
-- `/settings view` shows the current settings for the server.
-
-### Automations
-
-Created with a visual builder (`/hooks create`) and managed with `/hooks list`, `/hooks info`,
-`/hooks toggle` and `/hooks history`.
-
-| Template | What it does |
-|---|---|
-| Welcome | Greets new members with a card or text, gives an auto role, optional DM. |
-| Goodbye | Posts a farewell when members leave. |
-| Button roles | A panel with buttons that toggle roles, optionally one role at a time. Keeps working after restarts. |
-| Reaction roles | Emoji-to-role mapping on an existing message, optional removal on un-react. |
-| Word filter | Deletes, warns, times out or kicks on banned words. Whole-word and case options, ignored roles, log channel. |
-| XP and levels | XP per message with a cooldown, level-up messages, reward roles, `/hooks rank` and `/hooks leaderboard`. |
-| Recurring announcement | Posts a message every N hours. |
-| Support tickets | A panel with an "Open ticket" button that creates private channels for the member and a support role. |
-| Voice activity log | Logs voice joins, leaves, moves and mutes. |
-| Join-to-create voice | Joining a hub channel creates a personal voice channel. |
-| Webhook bridge | Forwards messages and joins to an external webhook (Discord, Zapier, Make). |
-
-**Custom automations** combine one trigger with up to 15 actions:
-
-- Triggers: a member joins or leaves, a message is sent (any, contains, exact, starts with or
-  regex), a reaction is added, a member joins a voice channel, or a schedule.
-- Actions: send a message or card, send a DM, add or remove a role, time out, call a webhook,
-  create a role, wait, or run another custom automation (up to 5 levels deep).
-- Conditions, combined with AND or OR: has or lacks a role, role above or below, in or not in
-  channels, time range, day of week, account age, member age, chance, not a bot, message contains,
-  message count and custom variables.
-- Placeholders in text such as `{user}`, `{guild_name}`, `{member_count}`, `{date}`, plus
-  `{random:1-10}` and `{math:...}`.
-- Cooldowns per user or per server, and a run history for each automation.
-- An automation that fails 10 times in a row is switched off and an alert is sent.
-- Webhooks must use `https` and cannot point to local or private addresses.
-
-### Backup and restore
-
-Available to server administrators.
-
-- `/backup create` captures roles, categories, channels (text, voice, forum with tags, permission
-  overwrites, slowmode), emojis, stickers, server settings, icon and banner, member roles and the
-  bot's settings for the server.
-- Backups are compressed and carry a checksum. `/backup verify` checks it.
-- `/backup restore` lets you pick components, choose whether existing items are updated and
-  whether member roles are synced, then preview the result as a dry run before anything changes.
-  Progress is shown live and a report follows.
-- `/backup diff` compares a backup with another backup or with the current server.
-- `/backup pin` protects a backup from rotation, `/backup note` attaches a note,
-  `/backup schedule` creates backups every N hours.
-- Limits per server, retention in days and a cooldown between manual backups are set in
-  `[backup]`. `/backup audit` shows who created, restored or deleted backups.
-- The bot owner can export any backup as JSON and see statistics across all servers.
-
-### Scheduler
-
-- `/schedule create` takes a standard 5-field cron expression (`0 9 * * mon-fri`), day and month
-  names, or a macro such as `@daily`. `0` is Sunday, as in standard cron.
-- Times use the time zone in `[scheduler] timezone` (any IANA name, for example `Europe/Berlin`).
-- A task posts a message (text or card), emits an event hook, or writes a log entry. It can stop
-  itself after a set number of runs.
-- `/schedule preview` explains an expression and lists its next runs. `/schedule info` shows a
-  task with buttons to enable, disable, run now or delete.
-- Tasks persist across restarts. Failed runs can be reported to a channel (`/schedule alerts`).
-- Extensions can create and remove tasks through the scheduler API.
-
-### Diagnostics and alerts
-
-Owner-only.
-
-- `/diag overview` shows health status (healthy, degraded or critical), event-loop lag, error
-  rate, latency and memory. A check runs every 5 minutes by default.
-- `/diag history` shows past checks with trend lines, `/diag errors` recent command errors.
-- `/diag migrations` and `/diag migrate` show and apply database migrations.
-- `/fw integrity` checks configuration, database integrity, writable folders, atomic storage, the
-  event hook worker, failed extensions, slash budget, intents, latency and disk space.
-- Alerts are routed per system to a channel with `/fw alerts`: errors, diagnostics, event hooks,
-  plugins, extensions, shards, cluster, backup, scheduler, automations, marketplace and database,
-  with a default channel for the rest.
-
-### Extensions, plugins and event hooks
-
-- Python files in `extensions/` load on start and reload when saved. A broken edit is rolled back
-  and the previous version keeps running. `[extensions] blacklist` skips files.
-- `/ext list`, `load`, `unload`, `reload` and `info` manage them without a restart.
-- Extensions can declare a version, dependencies with version ranges and conflicts. These are
-  checked before loading, including dependency cycles. `/plugins` shows metadata, the dependency
-  tree and validation results, and can switch enforcement off.
-- The event hook bus lets extensions react to framework events with priorities and timeouts.
-  Failing hooks trip a circuit breaker. `/eventhooks` lists hooks, shows history and enables,
-  disables or resets them.
-- Extensions get the Components V2 UI kit, per-server and global key/value storage, their own
-  database tables through migrations, atomic JSON files, validated config sections and the
-  scheduler.
-- V1 extensions run unchanged, including `atomic_file_system` imports and the V1 hook and
-  plugin calls.
-
-Writing an extension: [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
-
-### ZSync Marketplace
-
-- `/marketplace` browses extensions from the [ZSync Marketplace](https://zsync.eu/extension/).
-  The marketplace license is accepted once per user.
-- `/marketplace search` and `/marketplace info` find and describe extensions.
-- `/marketplace install` downloads an extension and shows a safety scan first: imports, risky
-  modules or calls (`subprocess`, `ctypes`, `socket`, ...) and whether it has a `setup` function.
-  You confirm, then load it.
-- `/marketplace updates` checks installed extensions for new versions, `/marketplace uninstall`
-  unloads and deletes one, `/marketplace fixdeps` installs missing Python packages.
-- `/marketplace key` shows this installation's ZSync ZDBF Key.
-
-### Database and storage
-
-- One SQLite file (`data/zdbf.db`) in WAL mode. Writes are committed atomically through one
-  connection, reads use a second, read-only connection.
-- The file is checked on every start. A damaged database is moved aside and the newest healthy
-  backup is restored automatically, with a critical alert.
-- Rolling database backups (7 kept, one every 24 hours by default), and one before every
-  migration.
-- `/fw db` shows statistics, takes a backup, runs a quick or full integrity check, and schedules a
-  restore from any backup. The restore is applied on the next start, never while the bot runs.
-- Hourly maintenance clears expired caches, old logs and `__pycache__` folders, checkpoints and
-  optimises the database. Logs rotate by size and are kept 30 days by default.
-
-Details: [docs/CONFIGURATION.md](docs/CONFIGURATION.md#database-safety).
-
-### Sharding and clusters
-
-- Automatic sharding, or manual with `SHARD_COUNT` and `SHARD_IDS`.
-- `/shard monitor`, `health` and `details` show per-shard latency, uptime, reconnects and event
-  throughput. Alerts fire after a set number of failures and again on recovery.
-- With `[modules] cluster = true`, several processes or machines connect over IPC. Every frame is
-  signed with HMAC-SHA256 and checked for age and replays. `/cluster` lists clusters, runs
-  connection diagnostics and broadcasts messages.
-
-### Interface
-
-- Every reply is a Components V2 layout: containers, sections, selects and modals, no embeds.
-- Menus belong to the person who opened them, disable themselves on timeout, and paginate
-  anything that could exceed Discord's limits.
-- The visual style is restrained: status dots only. Decorative emoji can be turned on with
-  `[ui] decorative_emoji`.
-- `[ui] help_banner` sets the image on top of `/help` (otherwise the bot's profile banner is used),
-  `[ui] support_url` adds a "Support server" button, and public bots get an "Invite" button
-  (`invite_button`, `invite_permissions`).
-
-## Configuration
-
-Settings live in `config.toml`, secrets in `.env`. Changes made from Discord (`/fw config set`,
-`/fw modules`) are stored as overrides, so your file and its comments are never rewritten.
-`/fw config reload` re-reads both files without a restart.
-
-```bash
-python -m zdbf --check                    # validate config.toml and .env, then exit
-python -m zdbf --config path/to/config.toml
-```
-
-| `.env` key | Purpose |
-|---|---|
-| `DISCORD_TOKEN` | Required. The bot token. |
-| `BOT_OWNER_ID` | Extra owner IDs, comma separated. |
-| `ZDBF_CONFIG` | Alternative path to `config.toml`. |
-| `SHARD_COUNT`, `SHARD_IDS` | Manual sharding. Leave empty and Discord decides. |
-| `SHARD_IPC_SECRET` | Cluster secret, at least 16 characters, identical on every process. |
-| `SHARD_IPC_MODE`, `SHARD_CLUSTER_NAME`, `SHARD_IPC_HOST`, `SHARD_IPC_PORT` | Per-process cluster settings. |
-
-Every built-in module (core, admin, settings, diagnostics, eventhooks, automations, plugins,
-scheduler, backup, shards, cluster, marketplace) can be switched off in `[modules]` or live with
-`/fw modules`. The full `config.toml` reference is in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+The full walkthrough, hosting tips and a systemd example are in
+[docs/guide/installation.md](docs/guide/installation.md).
 
 ## Commands
 
 | Group | Purpose | Who can use it |
 |---|---|---|
 | `/help` `/about` `/ping` `/stats` | Help browser, framework info, latency, statistics | Everyone |
-| `/settings` | Server prefix, mention prefix, role requirements per command | Manage Server; role requirements: server owner |
-| `/hooks` | Automations, visual builder, XP rank and leaderboard | Manage Server; rank and leaderboard: everyone |
+| `/settings` | Prefix, mention prefix, role requirements per command | Manage Server (role requirements: server owner) |
+| `/hooks` | Automations, visual builder, XP rank and leaderboard | Manage Server (rank and leaderboard: everyone) |
 | `/schedule` | Cron tasks | Manage Server |
-| `/backup` | Create, diff, verify, restore with preview, scheduled backups | Administrator |
-| `/marketplace` | Browse, install, update and remove ZSync extensions | Browsing: everyone; installing: bot owner |
-| `/plugins` | Plugin metadata, dependency tree, validation | Viewing: everyone; changes: bot owner |
-| `/fw` | Sync, caches, database, integrity, cleanup, config, alerts, modules, shutdown | Bot owner |
+| `/backup` | Create, compare, verify and restore server backups | Administrator |
+| `/marketplace` | Browse, install, update and remove extensions | Browsing: everyone, installing: bot owner |
+| `/plugins` | Extension metadata, dependency tree, validation | Viewing: everyone, changes: bot owner |
+| `/fw` | Sync, caches, database, integrity, config, alerts, modules, shutdown | Bot owner |
 | `/ext` | Load, unload and reload extensions | Bot owner |
-| `/diag` | Health dashboard, history, errors, migrations, slash budget | Bot owner |
+| `/diag` | Health, history, errors, migrations, slash budget | Bot owner |
 | `/eventhooks` | Framework event hooks and circuit breakers | Bot owner |
 | `/shard` | Per-shard health and metrics | Bot owner |
-| `/cluster` | Multi-process cluster status (when `[modules] cluster` is on) | Bot owner |
+| `/cluster` | Cluster status (when clusters are on) | Bot owner |
+| `/dashboard` | Export, pair, capabilities, lock and audit of the web dashboard | Bot owner |
 
-Every command with its arguments and V1 name: [docs/COMMANDS.md](docs/COMMANDS.md).
+Every command with its options and its V1 name: [docs/guide/commands.md](docs/guide/commands.md).
+
+## Configuration
+
+Settings live in `config.toml`, secrets in `.env`. Changes made from Discord (`/fw config set`,
+`/fw modules`) are stored separately, so your file and its comments are never rewritten.
+
+```bash
+python -m zdbf --check                    # validate config.toml and .env, then exit
+```
+
+Each built-in module (backups, automations, scheduler, marketplace, dashboard...) can be switched
+on or off in `[modules]` or live with `/fw modules`. Every option is explained in
+[docs/guide/configuration.md](docs/guide/configuration.md).
 
 ## Upgrading from V1
 
@@ -318,41 +321,61 @@ python tools/migrate_v1.py /path/to/v1               # migrate
 python -m zdbf
 ```
 
-Config, prefixes, permissions, scheduled tasks, backups, automations and your marketplace key
-carry over. V1 command names still work with the prefix (`!backupcreate`). The live web dashboard,
-`GeminiService`, `GeminiServiceHelper` and `ZExtensionAI` were removed in V2.
-Details: [docs/MIGRATING.md](docs/MIGRATING.md). All changes: [CHANGELOG.md](CHANGELOG.md).
+Config, prefixes, permissions, scheduled tasks, backups, automations and your marketplace key carry
+over, and V1 command names keep working with the prefix (`!backupcreate`).
+Details: [docs/guide/migrating-from-v1.md](docs/guide/migrating-from-v1.md).
 
-## For developers
+## Documentation
 
-```
-zdbf/
-  core/          bot, config, database and migrations, storage, hooks, plugins,
-                 permissions, alerts, cron, IPC, slash guard
-  ui/            Components V2 kit: cards, views, paginator, confirm
-  cogs/          built-in modules (automations/ and backup/ are packages)
-  marketplace/   ZSync Marketplace client, separate license
-extensions/      your extensions
-tools/           migrate_v1.py, selftest.py, gen_commands.py, strip_comments.py
-tests/           pytest suite
-```
+| For | Start here |
+|---|---|
+| Server owners and bot hosts | [User guide](docs/README.md#user-guide): installation, configuration, every feature, troubleshooting |
+| Developers | [Developer guide](docs/dev/README.md): architecture, extensions, dashboard panels, database, UI kit |
+| Everything | [docs/README.md](docs/README.md) |
 
-```bash
-pip install -e ".[dev]"
-ruff check .
-pytest
-python tools/selftest.py --deep           # live run, see below
-python tools/gen_commands.py              # regenerate docs/COMMANDS.md
-```
+## Frequently asked questions
 
-CI runs `ruff` and `pytest` on Python 3.12, 3.13 and 3.14. `selftest.py` logs in with the token
-from `.env` and runs a set of commands in a real server (`--guild` and `--channel` pick where).
-With `--deep` it also creates and deletes channels, roles, backups and panels, so use a dedicated
-test server only.
+<details>
+<summary><strong>Is ZDBF free?</strong></summary>
 
-The source is kept free of comments on purpose. Read [CONTRIBUTING](.github/CONTRIBUTING.md)
-before opening a pull request, and report vulnerabilities as described in
-[SECURITY](.github/SECURITY.md).
+Yes. The framework is open source under the Apache License 2.0. The ZSync Marketplace client has
+its own license, and extensions you download keep theirs.
+</details>
+
+<details>
+<summary><strong>Do I need to know Python to use it?</strong></summary>
+
+No. Every built-in feature is set up from Discord. Python is only needed if you want to write your
+own extensions.
+</details>
+
+<details>
+<summary><strong>Where can I host it?</strong></summary>
+
+Anywhere Python 3.12+ runs: your PC, a Raspberry Pi, a VPS or a container. The optional dashboard
+goes on ordinary PHP web hosting, which can be a different machine. The bot only connects out, so
+it needs no open port.
+</details>
+
+<details>
+<summary><strong>Can I use it for a public bot in many servers?</strong></summary>
+
+Yes. Settings, backups and automations are kept per server, sharding is automatic, and clusters
+spread a large bot over several processes or machines.
+</details>
+
+<details>
+<summary><strong>My V1 extensions, will they still work?</strong></summary>
+
+Yes. V1 extensions run unchanged, including the V1 hook, plugin, database and file APIs.
+</details>
+
+## Contributing and support
+
+- Read [CONTRIBUTING](.github/CONTRIBUTING.md) before opening a pull request.
+- Bugs, ideas and questions: [open an issue](https://github.com/TheHolyOneZ/ZDBF-V2/issues/new/choose).
+- Security problems: see [SECURITY](.github/SECURITY.md). Please do not report them publicly.
+- All changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

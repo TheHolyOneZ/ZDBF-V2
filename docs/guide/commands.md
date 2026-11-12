@@ -41,6 +41,21 @@ Full server snapshots: roles, channels, permissions, emojis, member roles and se
 | `/backup verify <backup_id>` | Check a backup's integrity | `backupverify` |
 | `/backup view <backup_id>` | Details of one backup | `backupview` |
 
+## Dashboard
+
+Link to the ZDBF Dashboard web control panel (bot owner).
+
+| Command | Description | V1 name |
+|---|---|---|
+| `/dashboard audit` 🔒 | Recent actions the dashboard asked the bot to run |  |
+| `/dashboard capabilities` 🔒 | Choose what the website may do, and what needs approval |  |
+| `/dashboard export` 🔒 | Build the folder you upload to your web host |  |
+| `/dashboard lock [locked=True]` 🔒 | Switch the dashboard link to view-only, or back |  |
+| `/dashboard pair <url> <code>` 🔒 | Connect this bot to your uploaded dashboard |  |
+| `/dashboard recover` 🔒 | Get a code to reset a lost owner password on the website |  |
+| `/dashboard status` 🔒 | Link state, last contact and capabilities |  |
+| `/dashboard unpair` 🔒 | Disconnect this bot from the dashboard |  |
+
 ## Diagnostics
 
 Health, event-loop lag, error tracking and slash command budget.
@@ -79,7 +94,7 @@ Bot-owner tools to manage the framework and its extensions.
 | `/ext load <name>` 🔒 | Load an extension | `load` |
 | `/ext reload <name>` 🔒 | Reload an extension (or 'all') | `reload` |
 | `/ext unload <name>` 🔒 | Unload an extension | `unload` |
-| `/fw alerts ["default"|"errors"|"diagnostics"|"eventhooks"|"plugins"|"extensions"|"shards"|"cluster"|"backup"|"scheduler"|"automations"|"marketplace"|"database"] [channel]` 🔒 | Route framework alerts to a channel |  |
+| `/fw alerts ["default"|"errors"|"diagnostics"|"eventhooks"|"plugins"|"extensions"|"shards"|"cluster"|"backup"|"scheduler"|"automations"|"marketplace"|"database"|"dashboard"] [channel]` 🔒 | Route framework alerts to a channel |  |
 | `/fw atomic-test` 🔒 | Test atomic file operations | `atomictest`, `atomic_test`, `atomic_test_main` |
 | `/fw cache` 🔒 | File / prefix / permission cache statistics | `cachestats`, `atomicstats`, `atomic_stats` |
 | `/fw cleanup` 🔒 | Clear caches, __pycache__ folders and old logs | `cleanup` |
@@ -178,4 +193,4 @@ Run messages, hooks and log entries on a cron schedule.
 | `/schedule preview <cron>` | Explain a cron expression and show its next runs |  |
 | `/schedule toggle <task>` | Enable or disable a task |  |
 
-**15** top-level slash commands · **112** including subcommands (Discord allows 100 top-level).
+**16** top-level slash commands · **121** including subcommands (Discord allows 100 top-level).

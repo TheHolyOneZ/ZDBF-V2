@@ -106,6 +106,7 @@ class ModuleSettings(_Section):
     shards: bool = True
     cluster: bool = False
     marketplace: bool = True
+    dashboard: bool = False
 
 
 class DiagnosticsSettings(_Section):
@@ -152,6 +153,40 @@ class MarketplaceSettings(_Section):
     api_url: str = "https://zsync.eu/extension/api/extensions.php?action=list"
     download_url: str = "https://zsync.eu/extension/download.php"
     cache_minutes: int = Field(10, ge=1)
+    auto_install_packages: bool = True
+
+
+class DashboardSettings(_Section):
+    capabilities: list[str] = [
+        "view", "logs", "chat.read", "chat.send", "commands.run", "extensions", "files.read",
+        "automations", "scheduler", "settings", "backups", "presence",
+    ]
+    approval: list[str] = [
+        "files.write", "config", "marketplace", "commands.owner", "backups.restore", "guilds.leave", "system",
+    ]
+    approval_timeout: int = Field(300, ge=30, le=3600)
+    file_roots: list[str] = ["extensions"]
+    max_file_kb: int = Field(1024, ge=1, le=65536)
+    idle_interval: int = Field(45, ge=15, le=600)
+    locked: bool = False
+
+    @field_validator("capabilities", "approval")
+    @classmethod
+    def _known(cls, v: list[str]) -> list[str]:
+        from ..cogs.dashboard.capabilities import NAMES
+
+        unknown = sorted(set(v) - NAMES)
+        if unknown:
+            raise ValueError(f"unknown dashboard capability: {', '.join(unknown)}")
+        return sorted(set(v), key=v.index)
+
+    @field_validator("file_roots")
+    @classmethod
+    def _roots(cls, v: list[str]) -> list[str]:
+        for root in v:
+            if not root.strip() or Path(root).is_absolute() or ".." in Path(root).parts:
+                raise ValueError(f"file root {root!r} must be a relative folder inside the bot directory")
+        return v
 
 
 class Settings(BaseModel):
@@ -172,6 +207,7 @@ class Settings(BaseModel):
     shards: ShardSettings = ShardSettings()
     cluster: ClusterSettings = ClusterSettings()
     marketplace: MarketplaceSettings = MarketplaceSettings()
+    dashboard: DashboardSettings = DashboardSettings()
 
 
 class Secrets(BaseModel):

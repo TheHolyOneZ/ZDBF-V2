@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import contextvars
 import copy
 import hashlib
 import json
@@ -23,11 +24,11 @@ from .cache import TTLCache
 from .config import Config
 from .database import Database
 from .errors import handle_app_command_error, handle_command_error
-from .extensions import ExtensionManager
+from .extensions import ExtensionManager, accept_old_setup
 from .hooks import HookBus
 from .logging import cleanup_old_logs
 from .metrics import MetricsCollector
-from .permissions import is_owner_only, role_permission_check
+from .permissions import is_owner_only, parent_checks, role_permission_check
 from .plugins import PluginMetadata, PluginRegistry
 from .slash_guard import SLASH_LIMIT, GuardedTree, SlashGuard
 from .storage import __name__ as _storage_module
@@ -36,7 +37,9 @@ sys.modules.setdefault("atomic_file_system", sys.modules[_storage_module])
 
 log = logging.getLogger("zdbf.bot")
 
-__all__ = ["ZDBFBot"]
+__all__ = ["ACTING_AS_OWNER", "ZDBFBot"]
+
+ACTING_AS_OWNER: contextvars.ContextVar[bool] = contextvars.ContextVar("zdbf_acting_as_owner", default=False)
 
 REPO_URL = "https://github.com/TheHolyOneZ/ZDBF-V2"
 
@@ -85,10 +88,15 @@ class ZDBFBot(commands.AutoShardedBot):
         self._sync_task: asyncio.Task[None] | None = None
         self.started_at = time.time()
         self.legacy_aliases: dict[str, str] = {}
+        self.add_check(parent_checks)
         self.add_check(role_permission_check)
         self.add_check(self._default_cooldown, call_once=True)
         self._cooldown_maps: dict[str, commands.CooldownMapping[Any]] = {}
         cards.set_decorative_emoji(config.settings.ui.decorative_emoji)
+
+    async def _load_from_module_spec(self, spec: Any, key: str) -> None:
+        accept_old_setup(spec, key)
+        await super()._load_from_module_spec(spec, key)
 
     async def setup_hook(self) -> None:
         await self.db.connect()
@@ -149,6 +157,8 @@ class ZDBFBot(commands.AutoShardedBot):
         return ids[0] if ids else 0
 
     async def is_owner(self, user: discord.abc.User, /) -> bool:
+        if ACTING_AS_OWNER.get() and self.user is not None and user.id == self.user.id:
+            return True
         if not self._app_owner_ids:
             await self._load_app_owners()
         return user.id in self.owner_id_set
